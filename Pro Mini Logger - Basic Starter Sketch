@@ -84,7 +84,7 @@ void setup() {
   DIDR0 = 0x0F;  // disables digital input on analog lines 0..3 (analog 4&5 are used for I2C bus)
   //important for builds that jumper A4->A2 and A5->A3 to bring the I2C bus to the side screw terminals 
 
-  #ifdef
+  #ifdef LED_GROUND_PIN
   pinMode(LED_GROUND_PIN, OUTPUT);   //units using pre-made LED boards sometimes need to set
   digitalWrite(LED_GROUND_PIN, LOW);  //another pin to sink current - depending on the wireing
   #endif
