@@ -68,10 +68,11 @@ byte bytebuffer1 =0;
 //byte bytebuffer2 =0;
 //int intbuffer=0;  //not used yet
 
-//indicator LED pins - change to suit actual connections
+//indicator LED pins - change these defs to suit actual
 #define RED_PIN 4
 #define GREEN_PIN 5
 #define BLUE_PIN 6 
+#define LED_GROUND_PIN 3 //some loggers need a pin grounded for pre-made led modules - but not if LED has true GND connect
 
 
 //======================================================================================================================
@@ -79,6 +80,14 @@ byte bytebuffer1 =0;
 //======================================================================================================================
 
 void setup() {
+ 
+  DIDR0 = 0x0F;  // disables digital input on analog lines 0..3 (analog 4&5 are used for I2C bus)
+  //important for builds that jumper A4->A2 and A5->A3 to bring the I2C bus to the side screw terminals 
+
+  #ifdef
+  pinMode(LED_GROUND_PIN, OUTPUT);   //units using pre-made LED boards sometimes need to set
+  digitalWrite(LED_GROUND_PIN, LOW);  //another pin to sink current - depending on the wireing
+  #endif
 
   #ifdef unregulatedOperation
   systemShutdownVoltage = 2850; // minimum Battery voltage when running from 2xAA's
@@ -183,7 +192,7 @@ void setup() {
 
 //setting any unused digital pins to input pullup reduces noise & risk of accidental short
 //D2 = RTC alarm interrupts, D456 = RGB led
-pinMode(3,INPUT_PULLUP); //only if you do not have anything connected to this pin
+//pinMode(3,INPUT_PULLUP); //only if you do not have anything connected to this pin
 pinMode(8,INPUT_PULLUP); //only if you do not have anything connected to this pin
 pinMode(9,INPUT_PULLUP); //only if you do not have anything connected to this pin
 #ifndef ECHO_TO_SERIAL
