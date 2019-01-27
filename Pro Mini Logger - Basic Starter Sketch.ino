@@ -31,6 +31,7 @@ const int chipSelect = 10;    //CS moved to pin 10 on the arduino
 RTC_DS3231 RTC; // creates an RTC object in the code
 // variables for reading the RTC time & handling the INT(0) interrupt it generates
 #define DS3231_I2C_ADDRESS 0x68
+#define DS3231_CONTROL_REG 0x0E
 #define RTC_INTERRUPT_PIN 2
 byte Alarmhour;
 byte Alarmminute;
@@ -135,6 +136,8 @@ void setup() {
   RTC.turnOffAlarm(1);
   DateTime now = RTC.now();
   sprintf(CycleTimeStamp, "%04d/%02d/%02d %02d:%02d", now.year(), now.month(), now.day(), now.hour(), now.minute());
+ 
+  enableRTCAlarmsonBackupBattery(); // NOTE: this is ONLY NEEDED IF you cut the VCC pin supplying regulator power to the DS3231
 
 #ifdef ECHO_TO_SERIAL
   Serial.println(F("Initializing SD card..."));
@@ -388,6 +391,25 @@ void clearClockTrigger()    // from http://forum.arduino.cc/index.php?topic=1090
   Wire.endTransmission();
   clockInterrupt=false;           //Finally clear the flag we use to indicate the trigger occurred
 }
+//====================================================================================
+// Enable Battery-Backed Square-Wave Enable on the RTC module: 
+/* Bit 6 (Battery-Backed Square-Wave Enable) of DS3231_CONTROL_REG 0x0E, can be set to 1 
+ * When set to 1, it forces the wake-up alarms to occur when running the RTC from the back up battery alone. 
+ * [note: This bit is usually disabled (logic 0) when power is FIRST applied]
+ */
+  void enableRTCAlarmsonBackupBattery(){
+  Wire.beginTransmission(DS3231_I2C_ADDRESS);// Attention RTC 
+  Wire.write(DS3231_CONTROL_REG);            // move the memory pointer to CONTROL_REG
+  Wire.endTransmission();                    // complete the ‘move memory pointer’ transaction
+  Wire.requestFrom(DS3231_I2C_ADDRESS,1);    // request data from register
+  byte resisterData = Wire.read();           // byte from registerAddress
+  bitSet(resisterData, 6);                   // Change bit 6 to a 1 to enable
+  Wire.beginTransmission(DS3231_I2C_ADDRESS);// Attention RTC
+  Wire.write(DS3231_CONTROL_REG);            // target the register
+  Wire.write(resisterData);                  // put changed byte back into CONTROL_REG
+  Wire.endTransmission();
+  }
+
 //====================================================================================
 int getRailVoltage()    // from http://forum.arduino.cc/index.php/topic,38119.0.html
 {
