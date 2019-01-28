@@ -6,7 +6,7 @@ A starter script for the Pro Mini based Classroom Data Logger build
 This repository contains a basic data logger script that will run on all of the Pro-Mini based "Modules &amp; Jumper Wires" logger described in the Sensors paper: http://www.mdpi.com/1424-8220/18/2/530 but was updated specifically for the 2019  **Pro Mini Logger Project for the Classroom [ EDU v2: 2019 ]** post at:
 https://thecavepearlproject.org/2019/01/11/pro-mini-logger-project-for-the-classroom-edu-version-2-2019/
 
-<img src="../images/_CavePearl_ClassroomLogger_2019_640pix.jpg">
+![Image of Classroom datalogger](../Pro-Mini-Datalogger---Basic-Starter-Sketch/images/_CavePearl_ClassroomLogger_2019_640pix.jpg)
 
 In general you only have to do four things to add a new sensor to this logger base code:
 
