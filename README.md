@@ -16,11 +16,12 @@ In general you only have to do four things to add a new sensor to this logger ba
 4) In the middle of the code where the data is written to the SD card add:
 
 **file.print(YourSensorVariable);** // ad this to the series of print statements between file.open & file.close();
+
 **file.println(",");** //add a comma after it to separate new data - the last line should say file.println
 
-The code then saves all the ascii characters to the SD card as CSV text. The code automatically creates a new empty data file that is named "dataXXX.csv" on the SD card as needed. To retrive your data, unplug the battery, and then exchange the SD card with a new one. Then import the CSV files into any spreadsheet like Excel, Google sheets, or Open Office. 
+The code then saves all the ascii characters to the SD card as CSV text. This script automatically creates a new empty data file that is named "dataXXX.csv" on the SD card at startup. To retrive your data, unplug the battery, and then exchange the SD card with a new one. Then import the CSV files into any spreadsheet like Excel, Google sheets, or Open Office. 
 
-You will find an introduction to the different types of sensors that you can use with the UNO logger at:
+You will find an introduction to the different types of sensors that you can use with the logger at:
 
 **Arduino Tutorial: Adding Sensors to Your Data Logger**
 https://thecavepearlproject.org/2017/12/17/adding-sensors-to-an-arduino-data-logger/
