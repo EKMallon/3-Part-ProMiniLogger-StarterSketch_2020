@@ -386,10 +386,10 @@ void clearClockTrigger()    // from http://forum.arduino.cc/index.php?topic=1090
   Wire.requestFrom(0x68,1);       //Read one byte
   bytebuffer1=Wire.read();        //In this example we are not interest in actually using the bye
   Wire.beginTransmission(0x68);   //Tell devices on the bus we are talking to the DS3231 
-  Wire.write(0x0F);               //status register
-  Wire.write(0b00000000);         //Write the byte.  The last 0 bit resets Alarm 1 //is it ok to just set these all to zeros?
+  Wire.write(0x0F);               //Status Register: Bit 3: zero disables 32kHz, Bit 7: zero enables the main oscilator
+  Wire.write(0b00000000);         //Write the byte. //Bit1: zero clears Alarm 2 Flag (A2F), Bit 0: zero clears Alarm 1 Flag (A1F)
   Wire.endTransmission();
-  clockInterrupt=false;           //Finally clear the flag we use to indicate the trigger occurred
+  clockInterrupt=false;           //Finally clear the flag
 }
 //====================================================================================
 // Enable Battery-Backed Square-Wave Enable on the RTC module: 
@@ -403,7 +403,7 @@ void clearClockTrigger()    // from http://forum.arduino.cc/index.php?topic=1090
   Wire.endTransmission();                    // complete the ‘move memory pointer’ transaction
   Wire.requestFrom(DS3231_I2C_ADDRESS,1);    // request data from register
   byte resisterData = Wire.read();           // byte from registerAddress
-  bitSet(resisterData, 6);                   // Change bit 6 to a 1 to enable
+  bitSet(resisterData, 6);                   // Change bit 6 to a 1 to enable Battery-Backed Square-Wave
   Wire.beginTransmission(DS3231_I2C_ADDRESS);// Attention RTC
   Wire.write(DS3231_CONTROL_REG);            // target the register
   Wire.write(resisterData);                  // put changed byte back into CONTROL_REG
