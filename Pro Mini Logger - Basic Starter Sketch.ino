@@ -8,9 +8,9 @@ that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 
 #include <Wire.h>
 #include <SPI.h>
-#include <RTClib.h>     // library from https://github.com/MrAlvin/RTClib  Note: there are many other DS3231 libs availiable
-#include <LowPower.h>   // https://github.com/rocketscream/Low-Power and https://github.com/rocketscream/Low-Power 
-#include <SdFat.h>      // needs 512 byte ram buffer! see https://github.com/greiman/SdFat
+#include <RTClib.h>     // https://github.com/MrAlvin/RTClib         // Note: there are many other DS3231 libs availiable
+#include <LowPower.h>   // https://github.com/rocketscream/Low-Power //for low power sleeping between readings
+#include <SdFat.h>      // https://github.com/greiman/SdFat          //needs 512 byte ram buffer!
 
 #define SampleIntervalMinutes 1  // Options: 1,2,3,4,5,6,10,12,15,20,30,60 ONLY (must be a divisor of 60)
 // this is the number of minutes the loggers sleeps between each sensor reading
