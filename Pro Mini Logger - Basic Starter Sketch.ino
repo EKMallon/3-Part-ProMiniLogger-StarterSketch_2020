@@ -298,7 +298,6 @@ analogRead(BatteryPin);delay(1);analogRead(BatteryPin); //throw away the first 2
 floatbuffer = float(analogRead(BatteryPin));
 floatbuffer = (floatbuffer+0.5)*(3.3/1024.0)*4.030303 ; // 4.0303 = (Rhigh+Rlow)/Rlow for 10M/3.3M resistor combination
 BatteryReading = int(floatbuffer*1000.0);
-}
 #endif  //voltageRegulated
 
 VccBGap = getRailVoltage(); //if your system is regulated - Rail voltage should be very stable 
