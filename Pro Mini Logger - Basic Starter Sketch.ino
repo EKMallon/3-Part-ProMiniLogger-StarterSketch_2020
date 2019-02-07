@@ -51,7 +51,7 @@ const char dataCollumnLabels[] PROGMEM = "TimeStamp,Battery(mV),Rail(mV),SDsaveD
 uint16_t VccBGap = 9999;  //the rail voltage is read using the internal 1.1v bandgap
 int BatteryReading = 9999; //usually read from the 10M/3.3M voltage divider, but could aso be VccBGap
 int preSDsaveBatterycheck = 9999;  //to check that there is enough power before Data saving
-uint16_t SDsaveVoltageDelta = 100; // updated dynamically in the code after ever SD save event
+uint16_t safetyMargin4SDsave = 100; // updated dynamically in the code after every SD save event
 uint16_t systemShutdownVoltage = 2850; // updated later depending on how you power your logger
 //if running from 2x AA cells (with no regulator) the input cutoff voltage should be 2850 mV (or higher)
 //if running a unit with the voltage regulator the absolute minumum input cutoff voltage is 3400 mV (or higher)
@@ -272,7 +272,7 @@ preSDsaveBatterycheck=int(floatbuffer*1000.0);
 preSDsaveBatterycheck = getRailVoltage(); //If running with no regulator then rail voltage = battery voltage
 #endif
 
-if (preSDsaveBatterycheck < (systemShutdownVoltage+SDsaveVoltageDelta+100)) {
+if (preSDsaveBatterycheck < (systemShutdownVoltage+safetyMargin4SDsave+100)) {
     error(); //shut down the logger because of low voltage reading
 }
 
