@@ -90,12 +90,12 @@ void setup() {
   digitalWrite(LED_GROUND_PIN, LOW);  //another pin to sink current - depending on the wireing
   #endif
 
-  #if defined (unregulated2xLithiumAA) || defined(ECHO_TO_SERIAL) // two situations with no voltage on the A6 resistor divider
-  systemShutdownVoltage = 2850; // minimum Battery voltage when running from 2x LITHIUM AA's
-  #endif
-
   #ifdef voltageRegulated
   systemShutdownVoltage = 3600; // 3400 is the minimum allowd input to the Mic5205 regulator - alkalines often drop by 200mv or more under load
+  #endif
+  
+  #if defined (unregulated2xLithiumAA) || defined(ECHO_TO_SERIAL) // two situations with no voltage on the A6 resistor divider
+  systemShutdownVoltage = 2850; // minimum Battery voltage when running from 2x LITHIUM AA's
   #endif
   
   // Setting the SPI pins high helps some sd cards go into sleep mode 
