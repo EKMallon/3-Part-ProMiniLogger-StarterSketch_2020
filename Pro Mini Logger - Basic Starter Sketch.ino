@@ -316,12 +316,10 @@ if (BatteryReading < systemShutdownVoltage) {
 digitalWrite(RED_PIN, LOW); digitalWrite(BLUE_PIN, HIGH); //I use RED led to indicate SD events, and BLUE to indicate RTC events
   
 //SDsaveVoltageDelta safety margin increases every time a larger voltage drop is recorded:
-if (preSDsaveBatterycheck > BatteryReading) { 
-intbuffer=preSDsaveBatterycheck-BatteryReading;  
+if ((preSDsaveBatterycheck-BatteryReading)>safetyMargin4SDsave) {
+  safetyMargin4SDsave= preSDsaveBatterycheck-BatteryReading;
 }
-if (intbuffer > safetyMargin4SDsave) { 
-safetyMargin4SDsave=intbuffer;  
-}
+
 //Note: SD card controllers sometimes generate "internal housekeeping events" that draw MUCH more power from the batteries than normal data saves
 //so the value in SDsaveVoltageDelta is usually set by these occasional big power drain events
 //this delta increases as your batteries run down, AND if the temperature falls low enough to reduce the amount of power your batteries can delvier
