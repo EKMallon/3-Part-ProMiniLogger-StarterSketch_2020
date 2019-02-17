@@ -285,7 +285,7 @@ file.open(FileName, O_WRITE | O_APPEND); // open the file for write at end
     file.print(",");
     file.print(VccBGap);
     file.print(",");  
-    file.print(SDsaveVoltageDelta);
+    file.print(safetyMargin4SDsave);
     file.print(",");  
     file.print(rtc_TEMP_degC);
     file.print(",");    
@@ -331,7 +331,7 @@ if ((preSDsaveBatterycheck-BatteryReading)>safetyMargin4SDsave) {
     Serial.print(",");  
     Serial.print(VccBGap);
     Serial.print(",");
-    Serial.print(SDsaveVoltageDelta);
+    Serial.print(safetyMargin4SDsave);
     Serial.print(",");     
     Serial.print(rtc_TEMP_degC);
     Serial.print(",");    
