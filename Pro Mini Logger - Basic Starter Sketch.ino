@@ -3,8 +3,10 @@ that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 
 //This code supports the online build tutorial at: https://thecavepearlproject.org/2019/01/11/pro-mini-logger-project-for-the-classroom-edu-version-2-2019/
 //but it will run on any of the Pro Mini dataloggers described at https://thecavepearlproject.org/how-to-build-an-arduino-data-logger/
+
 //updated 20190118 with better support for running unregulated systems directly from 2xAA lithium batteries
 //updated 20190204 with better with dynamically adjusted preSDsaveBatterycheck safety factor
+//updated 20190219 with support for using indicator LED as a light sensor
 
 #include <Wire.h>
 #include <SPI.h>
@@ -12,15 +14,24 @@ that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 #include <LowPower.h>   // https://github.com/rocketscream/Low-Power //for low power sleeping between readings
 #include <SdFat.h>      // https://github.com/greiman/SdFat          //needs 512 byte ram buffer!
 
+//============ CONFIGURATION SETTINGS =============================
 #define SampleIntervalMinutes 1  // Options: 1,2,3,4,5,6,10,12,15,20,30,60 ONLY (must be a divisor of 60)
 // this is the number of minutes the loggers sleeps between each sensor reading
 
-//#define ECHO_TO_SERIAL // this define enables debugging output to the serial monitor when your logger is powered via USB/UART
+#define ECHO_TO_SERIAL // this define enables debugging output to the serial monitor when your logger is powered via USB/UART
 // comment out this define when you are deploying the logger and running on batteries
 
 //uncomment ONLY ONE of following -> depending on how you are powering your logger
-#define voltageRegulated  // if you connect the power supply through the Raw & GND pins which uses the system regulator
-//#define unregulated2xLithiumAA  // define this if you've remvoved the regulator from the Pro Mini and are running from 2xAA lithium batteries
+//#define voltageRegulated  // if you connect the power supply through the Raw & GND pins which uses the system regulator
+#define unregulated2xLithiumAA  // define this if you've remvoved the regulator from the Pro Mini and are running from 2xAA lithium batteries
+
+#define LED_GROUND_PIN 3 //to use the indicator LED as a light sensor, it must be grounded on Pin D3
+#define readLEDsensor ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation 
+#define RED_PIN 6  //change these numbers to suit your actual connections
+#define GREEN_PIN 5
+#define BLUE_PIN 4 
+// Note: I always turn on indicator LEDs via INPUT_PULLUP, rather than HIGH,
+// to save power & add short circuit safety in case an LED is connected without limiter
 
 SdFat sd; /*Create the objects to talk to the SD card*/
 SdFile file;
@@ -47,6 +58,7 @@ const char compileDate[] PROGMEM = __DATE__;
 const char compileTime[] PROGMEM = __TIME__;
 const char compilerVersion[] PROGMEM = __VERSION__; // https://forum.arduino.cc/index.php?topic=158014.0
 const char dataCollumnLabels[] PROGMEM = "TimeStamp,Battery(mV),Rail(mV),SDsaveDelta(mV),RTC Temp(C),A0(Raw),"; //gets written to second line of datafiles
+const char noteToSelf[] PROGMEM = "Notes to yourself about your code here."; 
 
 uint16_t VccBGap = 9999;  //the rail voltage is read using the internal 1.1v bandgap
 int BatteryReading = 9999; //usually read from the 10M/3.3M voltage divider, but could aso be VccBGap
@@ -68,11 +80,6 @@ byte bytebuffer1 =0;
 float floatbuffer = 9999.9;
 int intbuffer=0;  //not used yet
 
-//indicator LED pins - change to suit actual connections
-#define RED_PIN 4
-#define GREEN_PIN 5
-#define BLUE_PIN 6 
-//#define LED_GROUND_PIN 3 //some of the loggers need this pin low to ground the RGB LED...
 
 //======================================================================================================================
 //  *  *   *   *   *   *   SETUP   *   *   *   *   *
@@ -80,10 +87,13 @@ int intbuffer=0;  //not used yet
 
 void setup() {
 
-  DIDR0 = 0b00001111; //this disables digital input on 4 analog lines: A0,A1,A2,A3 (Note: analog 4&5 are used for I2C bus)
-  //OR
-  //DIDR0 = 0b00001100; // disables digital input on only Analog lines A2 & A3 only -see datasheet page 266 for details
-  //builds that jumper A4->A2 and A5->A3 to bring the I2C bus to the screw terminals must disable digital on at least these two pins
+// builds that jumper A4->A2 and A5->A3 to bring the I2C bus to the screw terminals MUST DISABLE digital I/O on these two pins
+// If you are doing only ADC conversions on some of the analog inputs you can disable the digital buffers on those, to save power
+bitSet (DIDR0, ADC0D);  // disable digital buffer on A0
+bitSet (DIDR0, ADC1D);  // disable digital buffer on A1
+bitSet (DIDR0, ADC2D);  // disable digital buffer on A2
+bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
+//Once the input buffer is disabled, a digitalRead on those A-pins will always read zero.
 
   #ifdef LED_GROUND_PIN
   pinMode(LED_GROUND_PIN, OUTPUT);   //units using pre-made LED boards sometimes need to set
@@ -113,17 +123,16 @@ void setup() {
   // also prevents writing multiple file headers with power connection stutters
   pinMode(BLUE_PIN, OUTPUT);  digitalWrite(BLUE_PIN, LOW);
   pinMode(GREEN_PIN, OUTPUT);  digitalWrite(GREEN_PIN, LOW);
-  pinMode(RED_PIN, OUTPUT);  digitalWrite(RED_PIN, HIGH);
+  pinMode(RED_PIN,INPUT_PULLUP); //I use INPUT_PULLUP instead of HIGH as a safety factor in case students connect a RAW led
   LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
   digitalWrite(RED_PIN, LOW);
   pinMode(BLUE_PIN, INPUT_PULLUP);//note that to reduce power, you can also light blue & green LEDs with the pullup
   LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-  pinMode(BLUE_PIN, OUTPUT);digitalWrite(BLUE_PIN, LOW);
-  //digitalWrite(GREEN_PIN, HIGH);
+  digitalWrite(BLUE_PIN, LOW);
   pinMode(GREEN_PIN, INPUT_PULLUP); //green led is 4x as bright as the others...so can light it with pullup resistor to save power
   LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-  pinMode(GREEN_PIN, OUTPUT);digitalWrite(GREEN_PIN, LOW); 
-  digitalWrite(RED_PIN, HIGH); // red is usually dimmest color, so can't use the pullup trick
+  digitalWrite(GREEN_PIN, LOW); 
+  pinMode(RED_PIN,INPUT_PULLUP); // red is usually dimmest color, so can't use the pullup trick
   
   Serial.begin(9600);    // Open serial communications and wait for port to open:
   Wire.begin();          // start the i2c interface for the RTC
@@ -183,8 +192,13 @@ void setup() {
   file.print(F(","));
   file.print((__FlashStringHelper*)compilerVersion);
   file.println();
-  file.println();file.println((__FlashStringHelper*)dataCollumnLabels);
-  file.close(); delay(5);
+  file.print((__FlashStringHelper*)noteToSelf);
+  file.println();
+  file.println();file.print((__FlashStringHelper*)dataCollumnLabels);
+#ifdef  readLEDsensor
+  file.print(F("RedLED,GreenLED,BlueLED"));
+#endif
+  file.println();file.close();delay(5);
   LowPower.powerDown(SLEEP_60MS, ADC_OFF, BOD_OFF);
   //Note: SD cards can continue drawing system power for up to 1 second after file close command
   digitalWrite(RED_PIN, LOW);
@@ -193,17 +207,16 @@ void setup() {
   Serial.print(F("Data Filename:")); Serial.println(FileName); Serial.println(); Serial.flush();
 #endif
 
-//setting any unused digital pins to input pullup reduces noise & risk of accidental short
+//setting unused digital pins to input pullup reduces noise & risk of accidental short
 //D2 = RTC alarm interrupts, D456 = RGB led
-//pinMode(3,INPUT_PULLUP); //only if you do not have anything connected to this pin
 pinMode(7,INPUT_PULLUP); //only if you do not have anything connected to this pin
 pinMode(8,INPUT_PULLUP); //only if you do not have anything connected to this pin
 pinMode(9,INPUT_PULLUP); //only if you do not have anything connected to this pin
 #ifndef ECHO_TO_SERIAL
- pinMode(0,INPUT_PULLUP); //but not if we are on usb - then these pins are needed for RX & TX 
+ pinMode(0,INPUT_PULLUP); //but not if we are connected to usb - then these pins are needed for RX & TX 
  pinMode(1,INPUT_PULLUP);
 #endif
-digitalWrite(GREEN_PIN, HIGH); 
+pinMode(GREEN_PIN,INPUT_PULLUP); 
   
 //====================================================================================================
 }   //   terminator for setup
@@ -214,7 +227,7 @@ digitalWrite(GREEN_PIN, HIGH);
 //========================================================================================================
 
 void loop() {
-  digitalWrite(GREEN_PIN, HIGH); 
+  pinMode(GREEN_PIN,INPUT_PULLUP); 
   DateTime now = RTC.now(); //this reads the time from the RTC
   sprintf(CycleTimeStamp, "%04d/%02d/%02d %02d:%02d", now.year(), now.month(), now.day(), now.hour(), now.minute());
   //loads the time into a string variable - don’t record seconds in the time stamp because the interrupt to time reading interval is <1s, so seconds are always ’00’  
@@ -225,7 +238,7 @@ if (clockInterrupt) {
       RTC.turnOffAlarm(1);              //then turn it off.
     }
 #ifdef ECHO_TO_SERIAL
-   Serial.print("RTC Alarm on INT-0 triggered at ");  //(optional) debugging message
+   Serial.print("RTC Alarm:INT0 at ");  //(optional) debugging message
    Serial.println(CycleTimeStamp);
 #endif
     clockInterrupt = false;                //reset the interrupt flag to false
@@ -257,7 +270,84 @@ analogRead(analogPinA0);delay(5);  //delay lets ADC input cap adjust
 AnalogPinA0reading = analogRead(analogPinA0);
 
 
-//====================================================
+#ifdef readLEDsensor  
+//========  Read Light Level with the indicator LED as a sensor =====================================
+//===================================================================================================
+// this code is modfied from  //https://playground.arduino.cc/Learning/LEDSensor
+// with an explaination of the reverse-bias technique at https://www.sparkfun.com/news/2161
+// LED capacitor charges very quickly in 100-200ns so the reversal does not have to be held very long
+// The brighter the light, the faster the LED will cause the INPUT to change from HIGH to LOW
+
+//this code assumes D3 is the ground connection of the common cathode LED
+//also assumes the color connections are BLUE=D4, Green=D5, RED=D6 per the pre-made 5050 LED module
+//I use INPUT_PULLUP to light the LEDs, just for the extra saftey factor in case someone connected a raw LED.
+
+// Prep pin states
+pinMode(LED_GROUND_PIN,OUTPUT);digitalWrite(LED_GROUND_PIN,LOW);
+pinMode(RED_PIN,OUTPUT);digitalWrite(RED_PIN,LOW);
+pinMode(GREEN_PIN,OUTPUT);digitalWrite(GREEN_PIN,LOW);
+pinMode(RED_PIN,OUTPUT);digitalWrite(RED_PIN,LOW);
+
+  long j; //used for all three loops
+  //READ red channel of LED //BLUE=D4, Green=D5, RED=D6
+  pinMode(LED_GROUND_PIN,OUTPUT);digitalWrite(LED_GROUND_PIN,LOW);
+  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(BLUE_PIN,LOW);//channel not being read
+  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(GREEN_PIN,LOW);//channel not being read
+  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(RED_PIN,LOW);
+  pinMode(RED_PIN,OUTPUT);digitalWrite(RED_PIN,LOW);
+  pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200); //(D3 =sensing pin) Reverses Polarity on the LED to charge its internal capacitor
+  digitalWrite(3,LOW); //now D3 is in INPUT mode - listening to the voltage on the D3 pin
+  for (j = 0; j < 1000000; j++) { // Counts how long it takes the LED to sink back down to a logic 0 voltage level
+    if ((PIND & B00001000) == 0) break; //this is equivalent to: "if (digitalRead(LED_GROUND_PIN)==0) break;"  but much faster
+    //using PIND speeds the loop - increasing the sensitivity of the sensor.
+  } 
+  long redLEDreading=j;
+  
+#ifdef ECHO_TO_SERIAL
+   Serial.print(F("RedLED= "));
+   Serial.print(redLEDreading);
+#endif
+
+  //READ Green channel of LED   //BLUE=D4, Green=D5, RED=D6
+  pinMode(LED_GROUND_PIN,OUTPUT);digitalWrite(LED_GROUND_PIN,LOW);
+  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(RED_PIN,LOW);//channel not being read
+  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(BLUE_PIN,LOW);//channel not being read
+  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(GREEN_PIN,LOW);
+  pinMode(GREEN_PIN,OUTPUT);digitalWrite(GREEN_PIN,LOW);
+  pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(LED_GROUND_PIN,LOW);
+  for (j = 0; j < 1000000; j++) {
+    if ((PIND & B00001000) == 0) break;
+  }
+ long greenLEDreading=j;
+ 
+  #ifdef ECHO_TO_SERIAL
+   Serial.print(F("  GreenLED= "));
+   Serial.print(greenLEDreading);
+  #endif
+
+//READ Blue channel of LED //BLUE=D4, Green=D5, RED=D6
+  pinMode(3,OUTPUT);digitalWrite(3,LOW);
+  pinMode(RED_PIN,INPUT_PULLUP);digitalWrite(RED_PIN,LOW);//channel not being read
+  pinMode(GREEN_PIN,INPUT_PULLUP);digitalWrite(GREEN_PIN,LOW);//channel not being read
+  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(BLUE_PIN,LOW);
+  pinMode(BLUE_PIN,OUTPUT);digitalWrite(BLUE_PIN,LOW);
+  pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(LED_GROUND_PIN,LOW);
+  for (j = 0; j < 1000000; j++) {
+    if ((PIND & B00001000) == 0) break;
+  }
+ long blueLEDreading=j;
+ 
+  #ifdef ECHO_TO_SERIAL
+   Serial.print(F("  BlueLED= "));
+   Serial.println(blueLEDreading);Serial.flush();
+  #endif
+
+#endif // #ifdef readLEDsensor 
+
+//== END OF ======  Read Light Level with the indicator LED as a sensor =============================
+//===================================================================================================
+
+
 // ========== Pre SD saving battery checks ===========
 
 #ifdef voltageRegulated 
@@ -290,7 +380,15 @@ file.open(FileName, O_WRITE | O_APPEND); // open the file for write at end
     file.print(rtc_TEMP_degC);
     file.print(",");    
     file.print(AnalogPinA0reading);
+    file.print(",");
+#ifdef readLEDsensor 
+    file.print(redLEDreading);
+    file.print(",");  
+    file.print(greenLEDreading);
+    file.print(",");    
+    file.print(blueLEDreading);
     file.println(",");
+#endif   
     file.close();
 
 //========== POST SD saving battery check ===========
@@ -313,7 +411,7 @@ if (BatteryReading < systemShutdownVoltage) {
     error(); //shut down the logger if you get a voltage reading below the cut-off
   }
 
-digitalWrite(RED_PIN, LOW); digitalWrite(BLUE_PIN, HIGH); //I use RED led to indicate SD events, and BLUE to indicate RTC events
+digitalWrite(RED_PIN, LOW); pinMode(BLUE_PIN,INPUT_PULLUP); //I use RED led to indicate SD events, and BLUE to indicate RTC events
   
 //SDsaveVoltageDelta safety margin increases every time a larger voltage drop is recorded:
 if ((preSDsaveBatterycheck-BatteryReading)>safetyMargin4SDsave) {
@@ -325,6 +423,7 @@ if ((preSDsaveBatterycheck-BatteryReading)>safetyMargin4SDsave) {
 //this delta increases as your batteries run down, AND if the temperature falls low enough to reduce the amount of power your batteries can delvier
 
 #ifdef ECHO_TO_SERIAL  // print to the serial port only if ECHO_TO_SERIAL is defined
+    Serial.print("Data Saved: "); 
     Serial.print(CycleTimeStamp);
     Serial.print(","); 
     Serial.print(BatteryReading);
@@ -335,8 +434,16 @@ if ((preSDsaveBatterycheck-BatteryReading)>safetyMargin4SDsave) {
     Serial.print(",");     
     Serial.print(rtc_TEMP_degC);
     Serial.print(",");    
-    Serial.println(AnalogPinA0reading);
-    Serial.flush();
+    Serial.print(AnalogPinA0reading);
+#ifdef readLEDsensor 
+    Serial.print(",");
+    Serial.print(redLEDreading);
+    Serial.print(",");  
+    Serial.print(greenLEDreading);
+    Serial.print(",");    
+    Serial.print(blueLEDreading);
+#endif   
+    Serial.println(","); Serial.flush();
 #endif
 
 //============Set the next alarm time =============
@@ -364,16 +471,14 @@ if (RTC.checkAlarmEnabled(1)) {
   Serial.print(F("RTC Alarm Enabled!"));
   Serial.print(F(" Going to sleep for : "));
   Serial.print(SampleIntervalMinutes);
-  Serial.println(F(" minutes"));
+  Serial.println(F(" minute(s)"));
   Serial.println();
   Serial.flush();//adds a carriage return & waits for buffer to empty
 #endif
 }
 
   //delay(5); //this optional delay is only here so we can see the LED’s otherwise the entire loop executes so fast you might not see it.
-  digitalWrite(GREEN_PIN, LOW);digitalWrite(RED_PIN, LOW);digitalWrite(BLUE_PIN, LOW);
-  // Note: Normally you would NOT leave a red indicator LED on during sleep! This is just so you can see when your logger is sleeping, & when it's awake
-  //digitalWrite(RED_PIN, HIGH);  // Turn on red led as our indicator that the Arduino is sleeping. Remove this before deployment.
+digitalWrite(GREEN_PIN, LOW);digitalWrite(RED_PIN, LOW);digitalWrite(BLUE_PIN, LOW);
   //——– sleep and wait for next RTC alarm ————–
   // Enable interrupt on pin2 & attach it to rtcISR function:
 attachInterrupt(0, rtcISR, LOW);
@@ -427,7 +532,7 @@ void error(){
     digitalWrite(GREEN_PIN, LOW);digitalWrite(RED_PIN, LOW);digitalWrite(BLUE_PIN, LOW);
     //spend some time flashing red indicator light on error before shutdown!
     for (int CNTR = 0; CNTR < 50; CNTR++) { 
-    digitalWrite(RED_PIN, HIGH);
+    pinMode(RED_PIN,INPUT_PULLUP);
     LowPower.powerDown(SLEEP_120MS, ADC_OFF, BOD_ON);
     digitalWrite(RED_PIN, LOW);
     LowPower.powerDown(SLEEP_120MS, ADC_OFF, BOD_ON);
@@ -477,9 +582,6 @@ int getRailVoltage()    // from http://forum.arduino.cc/index.php/topic,38119.0.
   return result;
   
 }  // terminator for getRailVoltage()
-
-
-
 
 
 
