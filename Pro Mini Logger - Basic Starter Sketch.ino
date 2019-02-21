@@ -18,12 +18,12 @@ that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 #define SampleIntervalMinutes 1  // Options: 1,2,3,4,5,6,10,12,15,20,30,60 ONLY (must be a divisor of 60)
 // this is the number of minutes the loggers sleeps between each sensor reading
 
-#define ECHO_TO_SERIAL // this define enables debugging output to the serial monitor when your logger is powered via USB/UART
+//#define ECHO_TO_SERIAL // this define enables debugging output to the serial monitor when your logger is powered via USB/UART
 // comment out this define when you are deploying the logger and running on batteries
 
 //uncomment ONLY ONE of following -> depending on how you are powering your logger
-//#define voltageRegulated  // if you connect the power supply through the Raw & GND pins which uses the system regulator
-#define unregulated2xLithiumAA  // define this if you've remvoved the regulator from the Pro Mini and are running from 2xAA lithium batteries
+#define voltageRegulated  // if you connect the power supply through the Raw & GND pins which uses the system regulator
+//#define unregulated2xLithiumAA  // define this if you've remvoved the regulator from the Pro Mini and are running from 2xAA lithium batteries
 
 #define LED_GROUND_PIN 3 //to use the indicator LED as a light sensor, it must be grounded on Pin D3
 #define readLEDsensor ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation 
