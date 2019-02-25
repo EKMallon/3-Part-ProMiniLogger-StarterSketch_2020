@@ -4,8 +4,8 @@ that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 //This code supports the online build tutorial at: https://thecavepearlproject.org/2019/01/11/pro-mini-logger-project-for-the-classroom-edu-version-2-2019/
 //but it will run on any of the Pro Mini dataloggers described at https://thecavepearlproject.org/how-to-build-an-arduino-data-logger/
 
-//updated 20190118 with better support for running unregulated systems directly from 2xAA lithium batteries
-//updated 20190204 with better with dynamically adjusted preSDsaveBatterycheck safety factor
+//updated 20190118 with support for running unregulated systems directly from 2xAA lithium batteries
+//updated 20190204 with dynamically adjusted preSDsaveBatterycheck safety factor
 //updated 20190219 with support for using indicator LED as a light sensor
 
 #include <Wire.h>
