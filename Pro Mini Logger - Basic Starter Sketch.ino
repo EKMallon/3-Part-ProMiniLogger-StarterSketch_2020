@@ -136,8 +136,8 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
   
   Serial.begin(9600);    // Open serial communications and wait for port to open:
   Wire.begin();          // start the i2c interface for the RTC
-  TWBR = 2;//speeds up I2C bus to 400 kHz bus - ONLY Use this on 8MHz Pro Mini's
-  // and remove TWBR = 2; if you have sensor reading problems on the I2C bus
+  // TWBR = 2; //speeds up I2C bus to 400 kHz bus on 8MHz Pro Mini's ONLY
+  // remove TWBR = 2; for breadboard testing as the added capactiance can cause sensor reading problems on the I2C bus
   // onboard AT24c256 eeprom also ok @ 400kHz http://www.atmel.com/Images/doc0670.pdf  
 
   pinMode(RTC_INTERRUPT_PIN,INPUT_PULLUP);// RTC alarms low, so need pullup on the D2 line 
