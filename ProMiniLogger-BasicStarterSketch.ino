@@ -387,8 +387,8 @@ file.open(FileName, O_WRITE | O_APPEND); // open the file for write at end
     file.print(greenLEDreading);
     file.print(",");    
     file.print(blueLEDreading);
+#endif 
     file.println(",");
-#endif   
     file.close();
 
 //========== POST SD saving battery check ===========
