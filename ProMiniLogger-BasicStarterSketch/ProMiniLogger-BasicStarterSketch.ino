@@ -1,4 +1,4 @@
-/* A basic datalogger script from the Cave Pearl Project 
+/* A basic datalogger script from the Cave Pearl Project
 that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 
 //This code supports the online build tutorial at: https://thecavepearlproject.org/2019/01/11/pro-mini-logger-project-for-the-classroom-edu-version-2-2019/
@@ -26,10 +26,10 @@ that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 //#define unregulated2xLithiumAA  // define this if you've remvoved the regulator from the Pro Mini and are running from 2xAA lithium batteries
 
 #define LED_GROUND_PIN 3 //to use the indicator LED as a light sensor, it must be grounded on Pin D3
-#define readLEDsensor ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation 
+#define readLEDsensor ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation
 #define RED_PIN 6  //change these numbers to suit your actual connections
 #define GREEN_PIN 5
-#define BLUE_PIN 4 
+#define BLUE_PIN 4
 // Note: I always turn on indicator LEDs via INPUT_PULLUP, rather than HIGH,
 // to save power & add short circuit safety in case an LED is connected without limiter
 
@@ -54,11 +54,11 @@ byte tLSB = 0;
 
 char FileName[12] = "data000.csv"; //note: this gets updated to a new number if the file aready exists on the SD card
 const char codebuild[] PROGMEM = __FILE__;  // loads the compiled source code directory & filename into a varaible
-const char compileDate[] PROGMEM = __DATE__; 
+const char compileDate[] PROGMEM = __DATE__;
 const char compileTime[] PROGMEM = __TIME__;
 const char compilerVersion[] PROGMEM = __VERSION__; // https://forum.arduino.cc/index.php?topic=158014.0
 const char dataCollumnLabels[] PROGMEM = "TimeStamp,Battery(mV),Rail(mV),SDsaveDelta(mV),RTC Temp(C),A0(Raw),"; //gets written to second line of datafiles
-const char noteToSelf[] PROGMEM = "Notes to yourself about your code here."; 
+const char noteToSelf[] PROGMEM = "Notes to yourself about your code here.";
 
 uint16_t VccBGap = 9999;  //the rail voltage is read using the internal 1.1v bandgap
 int BatteryReading = 9999; //usually read from the 10M/3.3M voltage divider, but could aso be VccBGap
@@ -103,12 +103,12 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
   #ifdef voltageRegulated
   systemShutdownVoltage = 3600; // 3400 is the minimum allowd input to the Mic5205 regulator - alkalines often drop by 200mv or more under load
   #endif
-  
+
   #if defined (unregulated2xLithiumAA) || defined(ECHO_TO_SERIAL) // two situations with no voltage on the A6 resistor divider
   systemShutdownVoltage = 2850; // minimum Battery voltage when running from 2x LITHIUM AA's
   #endif
-  
-  // Setting the SPI pins high helps some sd cards go into sleep mode 
+
+  // Setting the SPI pins high helps some sd cards go into sleep mode
   // the following pullup resistors only needs to be enabled for the ProMini builds - not the UNO loggers
   pinMode(chipSelect, OUTPUT); digitalWrite(chipSelect, HIGH); //ALWAYS pullup the ChipSelect pin with the SD library
   //and you may need to pullup MOSI/MISO, usually MOSIpin=11, and MISOpin=12 if you do not already have hardware pulls
@@ -119,7 +119,7 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
 
   // 24 second time delay
   // this delay also stabilizes system after power connection
-  // the cap on the main battery voltage divider needs>2s to charge up 
+  // the cap on the main battery voltage divider needs>2s to charge up
   // also prevents writing multiple file headers with power connection stutters
   pinMode(BLUE_PIN, OUTPUT);  digitalWrite(BLUE_PIN, LOW);
   pinMode(GREEN_PIN, OUTPUT);  digitalWrite(GREEN_PIN, LOW);
@@ -131,16 +131,16 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
   digitalWrite(BLUE_PIN, LOW);
   pinMode(GREEN_PIN, INPUT_PULLUP); //green led is 4x as bright as the others...so can light it with pullup resistor to save power
   LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-  digitalWrite(GREEN_PIN, LOW); 
+  digitalWrite(GREEN_PIN, LOW);
   pinMode(RED_PIN,INPUT_PULLUP); // red is usually dimmest color, so can't use the pullup trick
-  
+
   Serial.begin(9600);    // Open serial communications and wait for port to open:
   Wire.begin();          // start the i2c interface for the RTC
   // TWBR = 2; //speeds up I2C bus to 400 kHz bus on 8MHz Pro Mini's ONLY
   // remove TWBR = 2; for breadboard testing as the added capactiance can cause sensor reading problems on the I2C bus
-  // onboard AT24c256 eeprom also ok @ 400kHz http://www.atmel.com/Images/doc0670.pdf  
+  // onboard AT24c256 eeprom also ok @ 400kHz http://www.atmel.com/Images/doc0670.pdf
 
-  pinMode(RTC_INTERRUPT_PIN,INPUT_PULLUP);// RTC alarms low, so need pullup on the D2 line 
+  pinMode(RTC_INTERRUPT_PIN,INPUT_PULLUP);// RTC alarms low, so need pullup on the D2 line
   //Note using the internal pullup is not needed if you have hardware pullups on SQW line, and most RTC modules do.
   RTC.begin();  // RTC initialization:
   clearClockTrigger(); //stops RTC from holding the interrupt low after power reset occured
@@ -167,7 +167,7 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
   Serial.println(F("card initialized."));
 #endif
   delay(50); //sd.begin hits the power supply pretty hard
-  
+
 // Find the next availiable file name // from https://learn.adafruit.com/adafruit-feather-32u4-adalogger/using-the-sd-card
   // 2 GB or smaller cards should be used and formatted FAT16 - FAT16 has a limit of 512 files entries in root
   // O_CREAT = create the file if it does not exist,  O_EXCL = fail if the file exists, O_WRITE - open for write
@@ -202,7 +202,7 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
   LowPower.powerDown(SLEEP_60MS, ADC_OFF, BOD_OFF);
   //Note: SD cards can continue drawing system power for up to 1 second after file close command
   digitalWrite(RED_PIN, LOW);
-  
+
 #ifdef ECHO_TO_SERIAL
   Serial.print(F("Data Filename:")); Serial.println(FileName); Serial.println(); Serial.flush();
 #endif
@@ -213,11 +213,11 @@ pinMode(7,INPUT_PULLUP); //only if you do not have anything connected to this pi
 pinMode(8,INPUT_PULLUP); //only if you do not have anything connected to this pin
 pinMode(9,INPUT_PULLUP); //only if you do not have anything connected to this pin
 #ifndef ECHO_TO_SERIAL
- pinMode(0,INPUT_PULLUP); //but not if we are connected to usb - then these pins are needed for RX & TX 
+ pinMode(0,INPUT_PULLUP); //but not if we are connected to usb - then these pins are needed for RX & TX
  pinMode(1,INPUT_PULLUP);
 #endif
-pinMode(GREEN_PIN,INPUT_PULLUP); 
-  
+pinMode(GREEN_PIN,INPUT_PULLUP);
+
 //====================================================================================================
 }   //   terminator for setup
 //=====================================================================================================
@@ -227,10 +227,10 @@ pinMode(GREEN_PIN,INPUT_PULLUP);
 //========================================================================================================
 
 void loop() {
-  pinMode(GREEN_PIN,INPUT_PULLUP); 
+  pinMode(GREEN_PIN,INPUT_PULLUP);
   DateTime now = RTC.now(); //this reads the time from the RTC
   sprintf(CycleTimeStamp, "%04d/%02d/%02d %02d:%02d", now.year(), now.month(), now.day(), now.hour(), now.minute());
-  //loads the time into a string variable - don’t record seconds in the time stamp because the interrupt to time reading interval is <1s, so seconds are always ’00’  
+  //loads the time into a string variable - don’t record seconds in the time stamp because the interrupt to time reading interval is <1s, so seconds are always ’00’
   // We set the clockInterrupt in the ISR, deal with that now:
 
 if (clockInterrupt) {
@@ -243,7 +243,7 @@ if (clockInterrupt) {
 #endif
     clockInterrupt = false;                //reset the interrupt flag to false
 }//=========================end of if (clockInterrupt) =========================
-  
+
 // read the RTC temp register - Note: the DS3231 temp registers (11h-12h) are only updated every 64seconds
   Wire.beginTransmission(DS3231_I2C_ADDRESS);
   Wire.write(0x11);                     //the register where the temp data is stored
@@ -270,7 +270,7 @@ analogRead(analogPinA0);delay(5);  //delay lets ADC input cap adjust
 AnalogPinA0reading = analogRead(analogPinA0);
 
 
-#ifdef readLEDsensor  
+#ifdef readLEDsensor
 //========  Read Light Level with the indicator LED as a sensor =====================================
 //===================================================================================================
 // this code is modfied from  //https://playground.arduino.cc/Learning/LEDSensor
@@ -300,9 +300,9 @@ pinMode(RED_PIN,OUTPUT);digitalWrite(RED_PIN,LOW);
   for (j = 0; j < 1000000; j++) { // Counts how long it takes the LED to sink back down to a logic 0 voltage level
     if ((PIND & B00001000) == 0) break; //this is equivalent to: "if (digitalRead(LED_GROUND_PIN)==0) break;"  but much faster
     //using PIND speeds the loop - increasing the sensitivity of the sensor.
-  } 
+  }
   long redLEDreading=j;
-  
+
 #ifdef ECHO_TO_SERIAL
    Serial.print(F("RedLED= "));
    Serial.print(redLEDreading);
@@ -319,7 +319,7 @@ pinMode(RED_PIN,OUTPUT);digitalWrite(RED_PIN,LOW);
     if ((PIND & B00001000) == 0) break;
   }
  long greenLEDreading=j;
- 
+
   #ifdef ECHO_TO_SERIAL
    Serial.print(F("  GreenLED= "));
    Serial.print(greenLEDreading);
@@ -336,13 +336,13 @@ pinMode(RED_PIN,OUTPUT);digitalWrite(RED_PIN,LOW);
     if ((PIND & B00001000) == 0) break;
   }
  long blueLEDreading=j;
- 
+
   #ifdef ECHO_TO_SERIAL
    Serial.print(F("  BlueLED= "));
    Serial.println(blueLEDreading);Serial.flush();
   #endif
 
-#endif // #ifdef readLEDsensor 
+#endif // #ifdef readLEDsensor
 
 //== END OF ======  Read Light Level with the indicator LED as a sensor =============================
 //===================================================================================================
@@ -350,7 +350,7 @@ pinMode(RED_PIN,OUTPUT);digitalWrite(RED_PIN,LOW);
 
 // ========== Pre SD saving battery checks ===========
 
-#ifdef voltageRegulated 
+#ifdef voltageRegulated
 analogReference(DEFAULT);
 analogRead(BatteryPin);delay(5);  //throw away the first reading, high impedance divider!
 floatbuffer = float(analogRead(BatteryPin));
@@ -370,49 +370,48 @@ if (preSDsaveBatterycheck < (systemShutdownVoltage+safetyMargin4SDsave+100)) {
 // The variables saved here should match the order stored in dataCollumnLabels[] at the start of the code
 file.open(FileName, O_WRITE | O_APPEND); // open the file for write at end
     file.print(CycleTimeStamp);
-    file.print(","); 
+    file.print(",");
     file.print(BatteryReading);
     file.print(",");
     file.print(VccBGap);
-    file.print(",");  
-    file.print(safetyMargin4SDsave);
-    file.print(",");  
-    file.print(rtc_TEMP_degC);
-    file.print(",");    
-    file.print(AnalogPinA0reading);
     file.print(",");
-#ifdef readLEDsensor 
+    file.print(safetyMargin4SDsave);
+    file.print(",");
+    file.print(rtc_TEMP_degC);
+    file.print(",");
+    file.print(AnalogPinA0reading);
+#ifdef readLEDsensor
     file.print(redLEDreading);
-    file.print(",");  
+    file.print(",");
     file.print(greenLEDreading);
-    file.print(",");    
+    file.print(",");
     file.print(blueLEDreading);
-    file.println(",");
-#endif   
+#endif
+    file.println(",");// needed in both cases (readLEDsensor and not)
     file.close();
 
 //========== POST SD saving battery check ===========
 //the SD card can pull up to 200mA, and so a more representative battery reading is one taken AFTER this load
 
-#ifdef voltageRegulated 
+#ifdef voltageRegulated
 analogRead(BatteryPin);//throw away the first reading, high impedance divider
 floatbuffer = float(analogRead(BatteryPin));
 floatbuffer = (floatbuffer+0.5)*(3.3/1024.0)*4.030303 ; // 4.0303 = (Rhigh+Rlow)/Rlow for 10M/3.3M resistor combination
 BatteryReading = int(floatbuffer*1000.0);
 #endif
 
-VccBGap = getRailVoltage(); //if your logger is regulated the rail voltage should be VERY stable 
+VccBGap = getRailVoltage(); //if your logger is regulated the rail voltage should be VERY stable
 
 #if defined(unregulated2xLithiumAA) || defined(ECHO_TO_SERIAL) // two situations with no voltage on the A6 input
 BatteryReading = VccBGap; //If you are running from raw battery power (with no regulator) VccBGap IS the battery voltage
 #endif
 
-if (BatteryReading < systemShutdownVoltage) { 
+if (BatteryReading < systemShutdownVoltage) {
     error(); //shut down the logger if you get a voltage reading below the cut-off
   }
 
 digitalWrite(RED_PIN, LOW); pinMode(BLUE_PIN,INPUT_PULLUP); //I use RED led to indicate SD events, and BLUE to indicate RTC events
-  
+
 //SDsaveVoltageDelta safety margin increases every time a larger voltage drop is recorded:
 if ((preSDsaveBatterycheck-BatteryReading)>safetyMargin4SDsave) {
   safetyMargin4SDsave= preSDsaveBatterycheck-BatteryReading;
@@ -423,26 +422,26 @@ if ((preSDsaveBatterycheck-BatteryReading)>safetyMargin4SDsave) {
 //this delta increases as your batteries run down, AND if the temperature falls low enough to reduce the amount of power your batteries can delvier
 
 #ifdef ECHO_TO_SERIAL  // print to the serial port only if ECHO_TO_SERIAL is defined
-    Serial.print("Data Saved: "); 
+    Serial.print("Data Saved: ");
     Serial.print(CycleTimeStamp);
-    Serial.print(","); 
+    Serial.print(",");
     Serial.print(BatteryReading);
-    Serial.print(",");  
+    Serial.print(",");
     Serial.print(VccBGap);
     Serial.print(",");
     Serial.print(safetyMargin4SDsave);
-    Serial.print(",");     
+    Serial.print(",");
     Serial.print(rtc_TEMP_degC);
-    Serial.print(",");    
+    Serial.print(",");
     Serial.print(AnalogPinA0reading);
-#ifdef readLEDsensor 
+#ifdef readLEDsensor
     Serial.print(",");
     Serial.print(redLEDreading);
-    Serial.print(",");  
+    Serial.print(",");
     Serial.print(greenLEDreading);
-    Serial.print(",");    
+    Serial.print(",");
     Serial.print(blueLEDreading);
-#endif   
+#endif
     Serial.println(","); Serial.flush();
 #endif
 
@@ -495,13 +494,13 @@ void rtcISR() {
   }
 
 //====================================================================================
-// Enable Battery-Backed Square-Wave Enable on the RTC module: 
-/* Bit 6 (Battery-Backed Square-Wave Enable) of DS3231_CONTROL_REG 0x0E, can be set to 1 
- * When set to 1, it forces the wake-up alarms to occur when running the RTC from the back up battery alone. 
+// Enable Battery-Backed Square-Wave Enable on the RTC module:
+/* Bit 6 (Battery-Backed Square-Wave Enable) of DS3231_CONTROL_REG 0x0E, can be set to 1
+ * When set to 1, it forces the wake-up alarms to occur when running the RTC from the back up battery alone.
  * [note: This bit is usually disabled (logic 0) when power is FIRST applied]
  */
   void enableRTCAlarmsonBackupBattery(){
-  Wire.beginTransmission(DS3231_I2C_ADDRESS);// Attention RTC 
+  Wire.beginTransmission(DS3231_I2C_ADDRESS);// Attention RTC
   Wire.write(DS3231_CONTROL_REG);            // move the memory pointer to CONTROL_REG
   Wire.endTransmission();                    // complete the ‘move memory pointer’ transaction
   Wire.requestFrom(DS3231_I2C_ADDRESS,1);    // request data from register
@@ -521,7 +520,7 @@ void clearClockTrigger()   // from http://forum.arduino.cc/index.php?topic=10906
   Wire.endTransmission();         //Before you can write to and clear the alarm flag you have to read the flag first!
   Wire.requestFrom(0x68,1);       //Read one byte
   bytebuffer1=Wire.read();        //In this example we are not interest in actually using the byte
-  Wire.beginTransmission(0x68);   //Tell devices on the bus we are talking to the DS3231 
+  Wire.beginTransmission(0x68);   //Tell devices on the bus we are talking to the DS3231
   Wire.write(0x0F);               //Status Register: Bit 3: zero disables 32kHz, Bit 7: zero enables the main oscilator
   Wire.write(0b00000000);         //Bit1: zero clears Alarm 2 Flag (A2F), Bit 0: zero clears Alarm 1 Flag (A1F)
   Wire.endTransmission();
@@ -531,7 +530,7 @@ void clearClockTrigger()   // from http://forum.arduino.cc/index.php?topic=10906
 void error(){
     digitalWrite(GREEN_PIN, LOW);digitalWrite(RED_PIN, LOW);digitalWrite(BLUE_PIN, LOW);
     //spend some time flashing red indicator light on error before shutdown!
-    for (int CNTR = 0; CNTR < 50; CNTR++) { 
+    for (int CNTR = 0; CNTR < 50; CNTR++) {
     pinMode(RED_PIN,INPUT_PULLUP);
     LowPower.powerDown(SLEEP_120MS, ADC_OFF, BOD_ON);
     digitalWrite(RED_PIN, LOW);
@@ -543,8 +542,8 @@ void error(){
 //====================================================================================
 int getRailVoltage()    // from http://forum.arduino.cc/index.php/topic,38119.0.html
 {
-  int result; 
-  const long InternalReferenceVoltage = 1100L; 
+  int result;
+  const long InternalReferenceVoltage = 1100L;
   //note your can read the band-gap voltage & set this value more accurately: https://forum.arduino.cc/index.php?topic=38119.0
 
   for (int i = 0; i < 4; i++) { // have to loop at least 4 times before it yeilds consistent results - the cap on aref needs to settle
@@ -578,10 +577,7 @@ int getRailVoltage()    // from http://forum.arduino.cc/index.php/topic,38119.0.
 
 //  if (result < LowestVcc) {LowestVcc = result;} //as the batteries loose capacity, the delta btween these two numbers increases
 //  if (result > HighestVcc) {HighestVcc = result;}
-  
+
   return result;
-  
+
 }  // terminator for getRailVoltage()
-
-
-
