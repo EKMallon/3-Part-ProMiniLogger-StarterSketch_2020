@@ -284,7 +284,7 @@ AnalogPinA0reading = analogRead(analogPinA0);
 
 // Prep pin states
 pinMode(LED_GROUND_PIN,OUTPUT);digitalWrite(LED_GROUND_PIN,LOW);
-pinMode(RED_PIN,OUTPUT);digitalWrite(RED_PIN,LOW);
+pinMode(BLUE_PIN,OUTPUT);digitalWrite(BLUE_PIN,LOW);
 pinMode(GREEN_PIN,OUTPUT);digitalWrite(GREEN_PIN,LOW);
 pinMode(RED_PIN,OUTPUT);digitalWrite(RED_PIN,LOW);
 
