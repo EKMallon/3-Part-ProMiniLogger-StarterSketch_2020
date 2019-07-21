@@ -445,13 +445,12 @@ long j; //this variable is used for all three LED reading loops
 
 //== END OF ======  Read Light Level with the indicator LED as a sensor =============================
 //===================================================================================================
-
   
-  pinMode(RED_PIN,INPUT_PULLUP);
+pinMode(RED_PIN,INPUT_PULLUP);  //saving data to SD card
   
 // ========== Pre SD saving battery checks ==========
 #if defined (unregulated2xLithiumAA) || defined(ECHO_TO_SERIAL) 
-  preSDsaveBatterycheck=getRailVoltage(); //If you are running from raw battery power (with no regulator) VccBGap IS the battery voltage
+  int preSDsaveBatterycheck=getRailVoltage(); //If you are running from raw battery power (with no regulator) VccBGap IS the battery voltage
   #else  // #ifdef voltageRegulated:
   analogReference(DEFAULT);analogRead(BatteryPin); delay(5);  //throw away the first reading when using high impedance voltage dividers!
   floatbuffer = float(analogRead(BatteryPin));
@@ -511,8 +510,8 @@ if (preSDsaveBatterycheck < (systemShutdownVoltage+safetyMargin4SDsave+100)) {
 //the SD card can pull up to 200mA, and so a more representative battery reading is one taken AFTER this load
 
   #if defined (unregulated2xLithiumAA) || defined(ECHO_TO_SERIAL) 
-  BatteryReading=getRailVoltage(); //If you are running from raw battery power (with no regulator) VccBGap IS the battery voltage
-  #else  // #ifdef voltageRegulated:
+  BatteryReading=getRailVoltage(); //If you are running from raw battery power (with no regulator) Rail voltage = battery voltage
+  #else  // if voltageRegulated:
   analogReference(DEFAULT);analogRead(BatteryPin); delay(5);  //throw away the first reading when using high impedance voltage dividers!
   floatbuffer = float(analogRead(BatteryPin));
   floatbuffer = (floatbuffer+0.5)*(3.3/1024.0)*4.030303; // 4.0303 = (Rhigh+Rlow)/Rlow for a 10M/3.3M voltage divider combination
