@@ -108,8 +108,8 @@ int integerBuffer = 9999;    // for temp-swapping ADC readings
 int integerBuffer2 = 9999;   // for temp-swapping ADC readings
 float floatBuffer=9999.9;    // for temporary float calculations
 // char stringBuffer[9];      // for conversion of float values to strings
-// eg:  stringBuffer[0] = '\0';dtostrf((b280_hum_act),6,2,stringBuffer); // BME280 Resolution: 0.008 %RH
-//      str.print(stringBuffer);str.print(F(",")); //7 chars is max for stringBuffer[8]!
+// for example:  stringBuffer[0] = '\0';dtostrf((b280_hum_act),6,2,stringBuffer); //b280_hum_act is float variable
+//               Serial.print(stringBuffer);Serial.print(F(",")); //8 chars is max for stringBuffer[9]!
 
 //======================================================================================================================
 //  *  *   *   *   *   *   SETUP   *   *   *   *   *
