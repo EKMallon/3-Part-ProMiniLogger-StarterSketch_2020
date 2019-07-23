@@ -1,3 +1,8 @@
+// ADD sync-delay before start to the base code (which only turns on if you enable LED readings) - this was implemented in earlier versions when I was still developing the LED readings
+// _20190505_LED_DarkCurrent_D6789_ULints_RBG_15min versions of the LED reading code (with blue led on while waiting)
+// could make a much simpler version of this that just sets the alarm and waits for the pin level to drop?
+
+
 /* A basic datalogger script from the Cave Pearl Project 
 that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 
@@ -7,8 +12,9 @@ that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 //updated 20190118 with support for unregulated systems running directly from 2xAA lithium batteries
 //updated 20190204 with dynamic preSDsaveBatterycheck safety check
 //updated 20190219 with support for using indicator LED as a light sensor
-//updated 20190720 with support for DS18b20 Temperature sensor, set to 12-bit
-//updated 20190720 with support for tweaking the internal vref constant
+//updated 20190720 REMOVED support for DS18b20 Temperature sensor, for training exercise
+//updated 20190720 with support for tweaking the internal vref constant for accurate rail voltages
+//updated 20190722 with 'delayed start' in setup to synchronize RTC alarms with sampling interval
 
 #include <Wire.h>
 #include <SPI.h>
@@ -17,16 +23,17 @@ that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 #include <SdFat.h>      // https://github.com/greiman/SdFat          //needs 512 byte ram buffer!
 
 //============ CONFIGURATION SETTINGS =============================
+//change the text inside the brackets the Details / CollumnLabels to suit your configuration - you have to do this part manually
 const char deploymentDetails[] PROGMEM = "Ed's Logger:#23,LED used as sensor,1134880L constant,UTC time set,if found contact: name@email.edu"; 
-const char dataCollumnLabels[] PROGMEM = "TimeStamp,Battery(mV),SDsaveDelta(mV),RTCtemp(C),A0(Raw),DS18b20(C),RedLED,GreenLED,BlueLED"; //gets written to second line of datafiles
-//change the text in the Details/Labels variables above to suit your configuration
+const char dataCollumnLabels[] PROGMEM = "TimeStamp,Battery(mV),SDsaveDelta(mV),RTCtemp(C),A0(Raw),DS18b20(raw),DS18b20(C),RedLED,GreenLED,BlueLED"; //gets written to second line of datafiles
 //more information on storing data with the PROGMEM modifier @ http://www.gammon.com.au/progmem
 
 #define SampleIntervalMinutes 1  // Options: 1,2,3,4,5,6,10,12,15,20,30 ONLY (must be a divisor of 60)
                                  // number of minutes the loggers sleeps between each sensor reading
 
-#define ECHO_TO_SERIAL // this enables debugging output to the serial monitor when your logger is powered via USB/UART
-                         // comment out this define when you are deploying the logger in the field
+//#define ECHO_TO_SERIAL // this enables debugging output to the serial monitor when your logger is powered via USB/UART
+                         // comment out this define when you are deploying the logger in the field 
+                         // enabling ECHO_TO_SERIAL also skips the red&blue='purple' alarm sync delay at the end of startup funtion
 
 //uncomment ONLY ONE of following -> depending on how you are powering your logger
 //#define voltageRegulated  // if you connect the battery supply through the Raw & GND pins & use the ProMini's regulator
@@ -37,11 +44,13 @@ const char dataCollumnLabels[] PROGMEM = "TimeStamp,Battery(mV),SDsaveDelta(mV),
 //but in reality the internal ref. varies by ±10% - to make the Rail/Battery readings more accurate use the CalVref utility from OpenEnergyMonitor
 // https://github.com/openenergymonitor/emontx2/blob/master/firmware/CalVref/CalVref.ino to get the constant for your particular Arduino
 
-// note this code assumes you have a common cathode RGB led as the indicator on your logger and are reading all three channels
-// however you can read only one LED color channel by disabling the other two color defines here:
-#define readRedLEDsensor ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation
-#define readGreenLEDsensor ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation 
-#define readBlueLEDsensor ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation 
+// This code assumes you have a common cathode RGB led as the indicator on your logger and are reading all three channels
+// however you can read only one LED color channel by disabling the other two defines here:
+// At low light levels it can take several seconds for each channel to make a reading
+// So use a sampling interval longer than 1 minute if you read all three colors or you could over-run the wakeup alarm (causes a 24hour sleep interval)
+#define readRedLED ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation
+#define readGreenLED ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation 
+#define readBlueLED ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation 
  
 #define LED_GROUND_PIN 3 // to use the indicator LED as a light sensor you must ground it through a digital I/O pin from D3 to D7
 #define RED_PIN 4   //change these numbers to suit the way you connected the indicator LED
@@ -87,16 +96,16 @@ int analogPinReading = 0;
 //TEMPERATURE Sensors enable if installed
 //=======================================
 //TEMP Sensor: comment this out if not connected:
-#define TS_DS18B20 8    //set this define to the INPUT PIN connected to the sensors DATA wire
-// & don't forget you need a 4K7 pullup resistor (joining data line to the high rail) for the DS18b20 to operate properly
+#define TS_DS18B20 8    //set this to the INPUT PIN connected to the sensors DATA wire
+// & don't forget you need a 4K7 pullup resistor (joining that data line to the high rail) for the DS18b20 to operate properly
 
-#if defined(TS_DS18B20)      // variables for DS18B20 temperature sensor only included if #define TS_DS18B20 exists
-#include <OneWire.h>         // this sensor library from  http://www.pjrc.com/teensy/td_libs_OneWire.html
+#if defined(TS_DS18B20)   // variables for DS18B20 temperature sensor only included if #define TS_DS18B20
+#include <OneWire.h>      // this sensor library from  http://www.pjrc.com/teensy/td_libs_OneWire.html
 OneWire ds(TS_DS18B20);      
  byte addr[8];
  int ds18b20_TEMP_Raw = 0;
  float ds18b20_TEMP_degC= 0.0;
-#endif
+#endif  //defined(TS_DS18B20)
 
 //Global variables
 //******************
@@ -106,10 +115,8 @@ byte bytebuffer2 = 0;     // second buffer for 16-bit registers
 //byte bytebuffer3 = 0;      // third buffer for 24-bit registers (MS5803)
 int integerBuffer = 9999;    // for temp-swapping ADC readings
 int integerBuffer2 = 9999;   // for temp-swapping ADC readings
-float floatBuffer=9999.9;    // for temporary float calculations
-// char stringBuffer[9];      // for conversion of float values to strings
-// for example:  stringBuffer[0] = '\0';dtostrf((b280_hum_act),6,2,stringBuffer); //b280_hum_act is float variable
-//               Serial.print(stringBuffer);Serial.print(F(",")); //8 chars is max for stringBuffer[9]!
+float floatBuffer = 9999.9;    // for temporary float calculations
+char stringBuffer[8];        // for conversion of float values to strings for printing with dtostrf 
 
 //======================================================================================================================
 //  *  *   *   *   *   *   SETUP   *   *   *   *   *
@@ -118,7 +125,7 @@ float floatBuffer=9999.9;    // for temporary float calculations
 void setup() {
 
 // builds that jumper A4->A2 and A5->A3 to bring the I2C bus to the screw terminals MUST DISABLE digital I/O on these two pins
-// If you are doing only ADC conversions on some of the analog inputs you can disable the digital buffers on those, to save power
+// If you are doing only ADC conversions on the analog inputs you can disable the digital buffers on those pins, to save power
 bitSet (DIDR0, ADC0D);  // disable digital buffer on A0
 bitSet (DIDR0, ADC1D);  // disable digital buffer on A1
 bitSet (DIDR0, ADC2D);  // disable digital buffer on A2
@@ -168,7 +175,7 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
   pinMode(RTC_INTERRUPT_PIN,INPUT_PULLUP);  //not needed if you have hardware pullups on SQW line, most RTC modules do but some do not
   DateTime now = RTC.now();
   sprintf(TimeStamp, "%04d/%02d/%02d %02d:%02d", now.year(), now.month(), now.day(), now.hour(), now.minute());
-  //enableRTCAlarmsonBackupBattery(); // only needed if you cut the pin supplying power to the DS3231
+  enableRTCAlarmsonBackupBattery(); // only needed if you cut the pin supplying power to the DS3231
 
   #if defined (unregulated2xLithiumAA) || defined(ECHO_TO_SERIAL) 
   BatteryReading=getRailVoltage(); //If you are running from raw battery power (with no regulator) VccBGap IS the battery voltage
@@ -180,26 +187,25 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
   #endif
   
   if (BatteryReading < (systemShutdownVoltage+safetyMargin4SDsave+100)) {
-    error(); //if the battery voltage is too low to create a log file, shut down the system
+    error_shutdown(); //if the battery voltage is too low to create a log file, shut down the system
   }
 
 #ifdef ECHO_TO_SERIAL
   Serial.println(F("Initializing SD card..."));
 #endif
-// print lines in the setup loop only happen once
-// see if the card is present and can be initialized
+  // see if the card is present and can be initialized
   if (!sd.begin(chipSelect,SPI_FULL_SPEED)) {   // some cards may need SPI_HALF_SPEED
     #ifdef ECHO_TO_SERIAL
     Serial.println(F("Card failed, or not present"));
     Serial.flush();
     #endif
-    error(); //if you cant initialise the SD card, you can't save any data - so shut down the logger
+    error_shutdown(); //if you cant initialise the SD card, you can't save any data - so shut down the logger
     return;
   }
-#ifdef ECHO_TO_SERIAL
+  #ifdef ECHO_TO_SERIAL
   Serial.println(F("card initialized."));
-#endif
-  delay(50); //sd.begin hits the power supply pretty hard
+  #endif
+  delay(25); //sd.begin hits the power supply pretty hard
   
 // Find the next availiable file name // from https://learn.adafruit.com/adafruit-feather-32u4-adalogger/using-the-sd-card
 // O_CREAT = create the file if it does not exist,  O_EXCL = fail if the file exists, O_WRITE - open for write
@@ -217,15 +223,13 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
   //write the header information in the new file
   file.print(F("Filename:"));
   file.println((__FlashStringHelper*)codebuild); // writes the entire path + filename to the start of the data file
-  file.print(F("Compiled:,"));
+  file.print(F("Compiled:,,"));
   file.print((__FlashStringHelper*)compileDate);
-  file.print(F(","));
+  file.print(F(",,"));
   file.print((__FlashStringHelper*)compileTime);
   file.println();file.println((__FlashStringHelper*)deploymentDetails);
   file.println();file.println((__FlashStringHelper*)dataCollumnLabels);
-  file.close();delay(5);
-  LowPower.powerDown(SLEEP_60MS, ADC_OFF, BOD_OFF);
-  //Note: SD cards can continue drawing system power for up to 1 second after file close command
+  file.close();//Note: SD cards can continue drawing system power for up to 1 second after file close command
   digitalWrite(RED_PIN, LOW);
   
 #ifdef ECHO_TO_SERIAL
@@ -261,29 +265,45 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
       Serial.print(addr[i], HEX);
     }
     Serial.println();Serial.flush();
-  }
+  }  // if ( !ds.search(addr))
+  
 #endif  //for #ifdef TS_DS18B20
 
 //setting UNUSED digital pins to input pullup reduces noise & risk of accidental short
-//D2 = RTC alarm interrupts, D456 = RGB led
 //pinMode(7,INPUT_PULLUP); //only if you do not have anything connected to this pin
 //pinMode(8,INPUT_PULLUP); //only if you do not have anything connected to this pin
 //pinMode(9,INPUT_PULLUP); // are you using this pin for the DS18b20?
 #ifndef ECHO_TO_SERIAL
- pinMode(0,INPUT_PULLUP); //but not if we are connected to usb - then these pins are needed for RX & TX 
- pinMode(1,INPUT_PULLUP);
+ pinMode(0,INPUT_PULLUP); //but not if we are connected to usb
+ pinMode(1,INPUT_PULLUP); //then these pins are needed for RX & TX 
 #endif
 
-#ifdef voltageRegulated 
-analogReference(DEFAULT);
-analogRead(BatteryPin);delay(5);  //throw away the first reading, high impedance divider!
-floatbuffer = float(analogRead(BatteryPin));
-floatbuffer = (floatbuffer+0.5)*(3.3/1024.0)*4.030303; // 4.0303 = (Rhigh+Rlow)/Rlow for 10M/3.3M resistor combination
-BatteryReading=int(floatbuffer*1000.0);
-#else
-BatteryReading=getRailVoltage(); //If you are running from raw battery power (with no regulator) VccBGap IS the battery voltage
-#endif
-  
+//==================================================================================================================
+//Delay logger start until alarm times are in sync with sampling intervals
+//this delay prevents a "short interval" from occuring @ the first hour rollover
+
+#ifdef ECHO_TO_SERIAL  
+  Serial.println(F("Timesync startup delay is disabled when ECHO_TO_SERIAL enabled"));
+  Serial.flush();
+#else   //sleep logger till alarm time is sync'd with sampling intervals
+  Alarmhour = now.hour(); Alarmminute = now.minute();
+  int syncdelay=Alarmminute % SampleIntervalMinutes;  // 7 % 10 = 7 because 7 / 10 < 1, e.g. 10 does not fit even once in seven. So the entire value of 7 becomes the remainder.
+  syncdelay=SampleIntervalMinutes-syncdelay; // when SampleIntervalMinutes is 1, syncdelay is 1, other cases are variable
+  Alarmminute = Alarmminute + syncdelay;
+  if (Alarmminute > 59) {  // check for roll-overs
+  Alarmminute = 0; Alarmhour = Alarmhour + 1; 
+  if (Alarmhour > 23) { Alarmhour = 0;}
+  }
+  RTC.setAlarm1Simple(Alarmhour, Alarmminute);
+  RTC.turnOnAlarm(1); //purple indciates logger is in delay-till-startup state
+  pinMode(RED_PIN,INPUT_PULLUP);pinMode(BLUE_PIN,INPUT_PULLUP);// red&blue combination is ONLY used for this
+  attachInterrupt(0, rtcISR, LOW);  // program hardware interrupt to respond to D2 pin being brought 'low' by RTC alarm
+  LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_ON);  //this puts logger to sleep
+  detachInterrupt(0); // disables the interrupt after the alarm wakes the logger
+  RTC.turnOffAlarm(1); // turns off the alarm on the RTC chip
+#endif  //#ifdef ECHO_TO_SERIAL 
+
+ digitalWrite(RED_PIN, LOW);digitalWrite(GREEN_PIN, LOW);digitalWrite(BLUE_PIN, LOW);//turn off all indicators
 //====================================================================================================
 }   //   terminator for setup
 //=====================================================================================================
@@ -295,11 +315,11 @@ BatteryReading=getRailVoltage(); //If you are running from raw battery power (wi
 
 void loop() {
   pinMode(BLUE_PIN,INPUT_PULLUP); 
-  DateTime now = RTC.now(); //this reads the time from the RTC
+  DateTime now = RTC.now(); // reads time from the RTC
   sprintf(TimeStamp, "%04d/%02d/%02d %02d:%02d", now.year(), now.month(), now.day(), now.hour(), now.minute());
   //loads the time into a string variable - don’t record seconds in the time stamp because the interrupt to time reading interval is <1s, so seconds are always ’00’  
-  // We set the clockInterrupt in the ISR, deal with that now:
 
+// We set the clockInterrupt in the ISR, deal with that now:
 if (clockInterrupt) {
     if (RTC.checkIfAlarm(1)) {       //Is the RTC alarm still on?
       RTC.turnOffAlarm(1);           //then turn it off.
@@ -329,12 +349,13 @@ else {
 }
 #ifdef ECHO_TO_SERIAL
 Serial.print(F(" TEMPERATURE from RTC is: "));
-Serial.print(rtc_TEMP_degC); // you can just print floats directly like this, but it takes >1K of compiled program memory 
-Serial.println(F(" Celsius"));Serial.flush();
+Serial.print(rtc_TEMP_degC); 
+Serial.println(F(" Celsius"));
+Serial.flush();
 #endif
-
 digitalWrite(BLUE_PIN, LOW); //end of RTC communications
-pinMode(GREEN_PIN,INPUT_PULLUP); //indicates sensor readings
+pinMode(GREEN_PIN,INPUT_PULLUP); //green indicates sensor readings taking place
+LowPower.powerDown(SLEEP_30MS, ADC_OFF, BOD_ON); //optional delay here to make indicator pip more visible
 
 //============================================================
 // Read Analog Input
@@ -353,100 +374,41 @@ analogPinReading = median_of_3( analogRead(analogInputPin), analogRead(analogInp
 //Read the DS18b20 temperature Sensor:
 #ifdef TS_DS18B20    
   ds18b20_TEMP_Raw = readDS18B20Temp();// Note: 750msec of sleep is embedded in this function while waiting for data!
-  #ifdef ECHO_TO_SERIAL
   ds18b20_TEMP_degC =(float)ds18b20_TEMP_Raw*0.0625; //many 12 bit sensors use this same calculation
-  integerBuffer = (int)ds18b20_TEMP_degC;
-  //integerBuffer2= int((ds18b20_TEMP_degC*1000) - abs(integerBuffer*1000)); // Float split into 2 intergers so print funtions dont eat memory  
-  integerBuffer2= ((int)(ds18b20_TEMP_degC*1000)%1000); // Float split into 2 intergers so print funtions dont eat memory  
-  Serial.print(F("DS18b20 Temp is: "));
-  Serial.print(integerBuffer);Serial.print(F("."));Serial.print(integerBuffer2);Serial.println(F(" Celsius"));Serial.flush();
+  #ifdef ECHO_TO_SERIAL
+  Serial.print(F("DS18b20 Temp is: "));Serial.print(ds18b20_TEMP_degC); 
   #endif
 #endif
 digitalWrite(GREEN_PIN, LOW);
- 
-//========  Read Light Level with the indicator LED as a sensor =====================================
-//===================================================================================================
-// this code is modfied from  //https://playground.arduino.cc/Learning/LEDSensor  I added PIND for speed
-// with an explaination of the reverse-bias LED reading technique at https://www.sparkfun.com/news/2161
-// the readings get smaller as the amount of light increases and the response is logarithmic
 
-long j; //this variable is used for all three LED reading loops
-  
-#ifdef readRedLEDsensor 
-// Prep pin states - discharge any existing capacitance
-  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
-  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
-  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
-  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
-//READ red channel of LED
-  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(BLUE_PIN,LOW);//channel not being read in input mode
-  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(GREEN_PIN,LOW);//channel not being read in input mode
-  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(RED_PIN,LOW);
-  pinMode(RED_PIN,OUTPUT);//digitalWrite(RED_PIN,LOW);
-  pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200); //Reverses Polarity on the LED to charge its internal capacitor
-  digitalWrite(LED_GROUND_PIN,LOW); //now (GROUND_PIN =sensing pin) is in INPUT mode - listening to the voltage on the LED
-  for (j = 0; j < 1000000; j++) {   // Counts how long it takes the LED to fall to the logic 0 voltage level
-    if ((PIND & (1 << LED_GROUND_PIN)) == 0) break; // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
-    //but PIND uses port manipulation so executes much faster than digitalRead-> increasing the resolution of the sensor
-  } 
-  long redLEDreading=j; //note that the maximum value here is 1000000 but that is an arbitrary limit (set so the system does not try to count forever)
-  
-#ifdef ECHO_TO_SERIAL
-   Serial.print(F("RedLED= "));
-   Serial.print(redLEDreading);
-#endif
-#endif  //for #ifdef readRedLEDsensor 
+//========================================================
+//Read Light Level with the indicator LED color channels 
+// Modfied from  //https://playground.arduino.cc/Learning/LEDSensor  I added PIND for speed
+// An explaination of the reverse-bias LED reading technique at https://www.sparkfun.com/news/2161
+// the logarithmic readings get smaller as the amount of light increases
 
-#ifdef readGreenLEDsensor   //READ Green channel of LED  
-// Prep pin states
-  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
-  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
-  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
-  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
-// READ green channel of LED
-  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(RED_PIN,LOW);//channel not being read
-  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(BLUE_PIN,LOW);//channel not being read
-  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(GREEN_PIN,LOW);
-  pinMode(GREEN_PIN,OUTPUT);//digitalWrite(GREEN_PIN,LOW);
-  pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200);//charge led internal capacitor
-  digitalWrite(LED_GROUND_PIN,LOW);
-  for (j = 0; j < 1000000; j++) {
-    if ((PIND & (1 << LED_GROUND_PIN)) == 0) break; 
-  }
- long greenLEDreading=j;
- 
+#ifdef readRedLED 
+uint32_t redLEDreading=readRedLEDchannel(); //call the function which reads the RED led channel
   #ifdef ECHO_TO_SERIAL
-   Serial.print(F("  GreenLED= "));
-   Serial.print(greenLEDreading);
+   Serial.print(F("RedLED= "));Serial.print(redLEDreading,3);Serial.flush();
   #endif
+#endif  //readRedLED 
 
-//READ Blue channel of LED //BLUE=D4, Green=D5, RED=D6
-// Prep pin states
-  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
-  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
-  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
-  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
-// READ blue channel of LED
-  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(RED_PIN,LOW);//channel not being read
-  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(GREEN_PIN,LOW);//channel not being read
-  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(BLUE_PIN,LOW);
-  pinMode(BLUE_PIN,OUTPUT);//digitalWrite(BLUE_PIN,LOW);
-  pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200);//charge led internal capacitor
-  digitalWrite(LED_GROUND_PIN,LOW);
-  for (j = 0; j < 1000000; j++) {
-    if ((PIND & (1 << LED_GROUND_PIN)) == 0) break; 
-  }
-  long blueLEDreading=j;
+#ifdef readGreenLED 
+uint32_t greenLEDreading=readGreenLEDchannel(); //call the function which reads the RED led channel
   #ifdef ECHO_TO_SERIAL
-   Serial.print(F("  BlueLED= "));
-   Serial.println(blueLEDreading);Serial.flush();
+   Serial.print(F("GreenLED= "));Serial.print(greenLEDreading);Serial.flush();
   #endif
-#endif // #ifdef readBlueLEDsensor 
+#endif  //readGreenLED 
 
-//== END OF ======  Read Light Level with the indicator LED as a sensor =============================
-//===================================================================================================
-  
-pinMode(RED_PIN,INPUT_PULLUP);  //saving data to SD card
+#ifdef readBlueLED 
+uint32_t blueLEDreading=readBlueLEDchannel(); //call the function which reads the RED led channel
+  #ifdef ECHO_TO_SERIAL
+   Serial.print(F("BlueLED= "));Serial.print(blueLEDreading);Serial.flush();
+  #endif
+#endif  //readBlueLED 
+ 
+pinMode(RED_PIN,INPUT_PULLUP); //indicate SD saving
   
 // ========== Pre SD saving battery checks ==========
 #if defined (unregulated2xLithiumAA) || defined(ECHO_TO_SERIAL) 
@@ -459,11 +421,12 @@ pinMode(RED_PIN,INPUT_PULLUP);  //saving data to SD card
   #endif
 
 if (preSDsaveBatterycheck < (systemShutdownVoltage+safetyMargin4SDsave+100)) {
-    error(); //shut down the logger because the voltage is too low for SD saving
+    error_shutdown(); //shut down the logger because the voltage is too low for SD saving
 }
 
 //========== If battery is OK then it's safe to write the data ===========
-// The variables saved here should match the order stored in dataCollumnLabels[] at the start of the code
+// the order of variables being written to the file here should match the text 
+// you entered in the dataCollumnLabels[] variable at the start of the code:
     file.open(FileName, O_WRITE | O_APPEND); // open the file for write at end
     file.print(TimeStamp);
     file.print(","); 
@@ -471,35 +434,35 @@ if (preSDsaveBatterycheck < (systemShutdownVoltage+safetyMargin4SDsave+100)) {
     file.print(","); 
     file.print(safetyMargin4SDsave);
     file.print(",");  
-
-    //split floats into 2 intergers so print funtions dont eat up your variable memory
-    integerBuffer = (int)rtc_TEMP_degC; 
-    //integerBuffer2 = int((rtc_TEMP_degC * 100) - abs(integerBuffer * 100)); // only extract two decimal digits here or calc gives x.224 & x.238 error  
-    integerBuffer2= ((int)(rtc_TEMP_degC*100.0)%100); 
-    file.print(integerBuffer);file.print(".");file.print(integerBuffer2);
+    file.print(rtc_TEMP_degC); 
     file.print(",");   
     file.print(analogPinReading); 
     file.print(",");   
 
 #ifdef TS_DS18B20
-    ds18b20_TEMP_degC = ds18b20_TEMP_Raw * 0.0625; //many 12 bit sensors use this same calculation
-    integerBuffer = (int)ds18b20_TEMP_degC;        //whole number portion // The (int) cast from float to int keeps only the integer part
-    //integerBuffer2= int((ds18b20_TEMP_degC*1000) - abs(integerBuffer*1000)); //here we are extracting three significant digits
-    integerBuffer2= ((int)(ds18b20_TEMP_degC*1000.0)%1000);  //here we are extracting three digits
-    //the cast to (int) trims multiplied to exact #of digits you want & then %=modulus(remainder)=the decimal portion // https://stackoverflow.com/questions/499939/extract-decimal-part-from-a-floating-point-number-in-c
-    file.print(integerBuffer);file.print(".");file.print(integerBuffer2);
+    file.print(ds18b20_TEMP_Raw);
     file.print(",");
+    file.print(ds18b20_TEMP_degC,3);
+    file.print(",");
+
+    //OR to save program memory
+    //stringBuffer[0] = '\0'; //empties stringBuffer by making first character a 'null' value
+    //dtostrf((ds18b20_TEMP_degC),7,3,stringBuffer); //7 characters total, with 3 ASCII characters after the decimal point.
+    //file.print(stringBuffer); //dtostrf is a better way to save exactly the right number of float digits to SD card
+    //what if ds18b20_TEMP_degC had the value 1.6794, what would be the output then? Well, it would still be 7 characters long, with 3 characters after the decimal point, but it would be padded at the beginning with spaces. I.e.   1.679
+    //file.print(integerBuffer);file.print(".");file.print(integerBuffer2);
+    
 #endif
    
-#ifdef readRedLEDsensor 
+#ifdef readRedLED 
     file.print(redLEDreading);
     file.print(",");
 #endif 
-#ifdef readGreenLEDsensor   
+#ifdef readGreenLED   
     file.print(greenLEDreading);
     file.print(","); 
 #endif 
-#ifdef readBlueLEDsensor   
+#ifdef readBlueLED   
     file.print(blueLEDreading);
     file.print(","); 
 #endif 
@@ -510,8 +473,8 @@ if (preSDsaveBatterycheck < (systemShutdownVoltage+safetyMargin4SDsave+100)) {
 //the SD card can pull up to 200mA, and so a more representative battery reading is one taken AFTER this load
 
   #if defined (unregulated2xLithiumAA) || defined(ECHO_TO_SERIAL) 
-  BatteryReading=getRailVoltage(); //If you are running from raw battery power (with no regulator) Rail voltage = battery voltage
-  #else  // if voltageRegulated:
+  BatteryReading=getRailVoltage(); //If you are running from raw battery power (with no regulator) VccBGap IS the battery voltage
+  #else  // #ifdef voltageRegulated:
   analogReference(DEFAULT);analogRead(BatteryPin); delay(5);  //throw away the first reading when using high impedance voltage dividers!
   floatbuffer = float(analogRead(BatteryPin));
   floatbuffer = (floatbuffer+0.5)*(3.3/1024.0)*4.030303; // 4.0303 = (Rhigh+Rlow)/Rlow for a 10M/3.3M voltage divider combination
@@ -525,7 +488,7 @@ if ((preSDsaveBatterycheck-BatteryReading)>safetyMargin4SDsave) {
   safetyMargin4SDsave= preSDsaveBatterycheck-BatteryReading;
   }
 if (BatteryReading < systemShutdownVoltage) { 
-    error(); //shut down the logger if you get a voltage reading below the cut-off
+    error_shutdown(); //shut down the logger if you get a voltage reading below the cut-off
   }
 digitalWrite(RED_PIN, LOW);  // SD saving is over
 pinMode(BLUE_PIN,INPUT_PULLUP); // BLUE to indicate RTC events
@@ -631,7 +594,7 @@ void clearClockTrigger()   // from http://forum.arduino.cc/index.php?topic=10906
   }
   
 //========================================================================================
-void error(){
+void error_shutdown(){
     digitalWrite(GREEN_PIN, LOW);digitalWrite(RED_PIN, LOW);digitalWrite(BLUE_PIN, LOW);
     // spend some time flashing red indicator light on error before shutdown!
     for (int CNTR = 0; CNTR < 100; CNTR++) { 
@@ -644,50 +607,28 @@ void error(){
 }
 
 //====================================================================================
-int getRailVoltage()    // from http://forum.arduino.cc/index.php/topic,38119.0.html
+int getRailVoltage()    // modified from http://forum.arduino.cc/index.php/topic,38119.0.html
 {
-  int result; //gets passed back to main loop
-  int value;  //temp variable for calculation
+  int result; // gets passed back to main loop
+  int value;  // temp variable for the conversion to millivolts
 
-#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
-    // For mega boards
-    // const long InternalReferenceVoltage = 1100L;  // Adjust this value to your boards specific internal BG voltage x1000
-    // REFS1 REFS0          --> 0 1, AVcc internal ref.
-    // MUX4 MUX3 MUX2 MUX1 MUX0  --> 11110 1.1V (VBG)
-    ADMUX = (0 << REFS1) | (1 << REFS0) | (0 << ADLAR) | (1 << MUX4) | (1 << MUX3) | (1 << MUX2) | (1 << MUX1) | (0 << MUX0);
-#else
-    // For 168/328 boards
-    // const long InternalReferenceVoltage = 1100L;
-    // Adust this value to your boards specific internal BG voltage x1000
-    // REFS1 REFS0          --> 0 1, AVcc internal ref.
-    // MUX3 MUX2 MUX1 MUX0  --> 1110 1.1V (VBG)
+    // ADC configuration command for ADC on 328p based Arduino boards  // REFS1 REFS0  --> 0 1, AVcc internal ref. // MUX3 MUX2 MUX1 MUX0 -->1110 sets 1.1V bandgap
     ADMUX = (0 << REFS1) | (1 << REFS0) | (0 << ADLAR) | (1 << MUX3) | (1 << MUX2) | (1 << MUX1) | (0 << MUX0);
-#endif
-
-    // changing the ADC reference from default rail/Vcc voltage to internal 1.1V bandgap can take 10 msec
-    // due to the fact that the capacitor connected to the aref pin (on the Promini) needs to discharge down to the lower reference level
-    ADCSRA |= _BV( ADSC ); //engage Mux settings & throw away the first ADC reading
-    while ( ( (ADCSRA & (1 << ADSC)) != 0 ) ); // wait for throw away reading to occur
-    delay(3);
-  
-    for (int i = 0; i < 4; i++) { //loop 4-6 times for consistent results
-    ADCSRA |= _BV( ADSC ); // Start an ADC conversion
-    while ( ( (ADCSRA & (1 << ADSC)) != 0 ) ); // Wait for it to complete
-    value = ADC;
-    delay(1);
-    }      // terminates for(int i=0; i <= 5; i++) loop
-
-    result = (((InternalReferenceConstant) / (long)value)); //scale the reading into milliVolts
-
-    // post reading cleanup: select input port A0 + re-engage default rail voltage as Aref
-    ADMUX = bit (REFS0) | (0 & 0x07); analogRead(A0);  
-  
-  return result;
+    // Note: changing the ADC reference from the (default) 3.3v rail to internal 1.1V bandgap can take up to 10 msec to stabilize
+    for (int i = 0; i < 7; i++) { // loop several times so the capacitor connected to the aref pin can discharge down to the 1.1v reference level
+    ADCSRA |= _BV( ADSC );                     // Start an ADC conversion
+    while ( ( (ADCSRA & (1 << ADSC)) != 0 ) ); // makes the processor wait for ADC reading to complete
+    value = ADC; // value = the ADC reading
+    delay(1);    // delay time for capacitor on Aref to discharge
+    } // for(int i=0; i <= 5; i++)
+    ADMUX = bit (REFS0) | (0 & 0x07); analogRead(A0); // post reading cleanup: select input channel A0 + re-engage the default rail as Aref
+    result = (((InternalReferenceConstant) / (long)value)); //scale the ADC reading into milliVolts  
+    return result;
   
 }  // terminator for getRailVoltage() function
 
 //====================================================================================
-// DS18B20  ONE WIRE TEMPERATURE reading function
+// DS18B20  ONE WIRE TEMPERATURE reading function  https://www.best-microcontroller-projects.com/ds18b20.html
 // this function from library at http://www.pjrc.com/teensy/td_libs_OneWire.html
 // also see Dallas Temperature Control library by Miles Burton: http://milesburton.com/Dallas_Temperature_Control_Library
 
@@ -697,15 +638,10 @@ int readDS18B20Temp()
   byte data[2]; //byte data[12]; there are more bytes of data to be read...
   ds.reset();
   ds.select(addr);
-  ds.write(0x44); // start conversion, read temperature and store it in the scratchpad
-  //The time needed between the CONVERT_T command and the READ_SCRATCHPAD command has to be at least
-  //750 millisecs (but can be shorter if using a D18B20 set to resolution < 12 bits)
-  //if you start getting "85" all the time you did not wait long enough
-  // power saving during sleep from http://www.gammon.com.au/forum/?id=11497
-  // no need to keep processor awake for that time:
-  LowPower.powerDown(SLEEP_500MS, ADC_OFF, BOD_ON);
-  LowPower.powerDown(SLEEP_250MS, ADC_OFF, BOD_ON);
-  delay(6); //regulator stabilization after uC startup
+  ds.write(0x44); // start conversion, read temperature & store it in the scratchpad
+  LowPower.powerDown(SLEEP_500MS, ADC_OFF, BOD_ON); // Put the Arduino processor to sleep
+  LowPower.powerDown(SLEEP_250MS, ADC_OFF, BOD_ON); // while the DS18b20 gathers it's reading
+  delay(5); //regulator stabilization after uC wakeup
   byte present = ds.reset();
   ds.select(addr);
   ds.write(0xBE); // Read Scratchpad
@@ -719,6 +655,99 @@ int readDS18B20Temp()
   return tempRaw;
 }
 #endif
+
+//The time needed between the CONVERT_T command and the READ_SCRATCHPAD command has to be at least
+//750 millisecs (but can be shorter if using a D18B20 set to resolution < 12 bits)
+//if you start getting "85" all the time you did not wait long enough
+// One quirk of this sensor is that Dallas choose a value inside the valid range as the powerup default.
+// The DS18b20 sensor will reset to 85C on power up, and this can happen when doing a long conversion and power falls too low.
+// The sensor appears on the bus, since it’s able to use parasitic power, but as soon as you try to read a temperature it will fall off the bus.
+// The sensor might also report 85C if the temperature is retrieved but the sensor has not been commanded
+
+/* from Chris Shucksmith:  http://www.jon00.me.uk/onewireintro.shtml
+ * "If you intend to have a large 1-wire network, it is important that you design the network correctly, otherwise you will have problems with 
+ * timing/reflection issues and loss of data. For very small networks, it is possible to connect each sensor in a star or radial arrangement. 
+ * This means that each sensor is connected via its own cable back to a central point and then connected to the 1-wire to serial adapter. 
+ * However, it is strongly recommend that you connect each sensor to a single continuous cable which loops from sensor to sensor in turn (daisy chain). 
+ * This will reduce potential misreads due to reflections in the cable. Each sensor should have a maximum of 50mm (2") of cable connected off the 
+ * main highway. Even using this method, connecting more than 10-15 sensors will still cause problems due to loading of the data bus. 
+ * To minimise this effect, always place a 100-120 ohm resistor in the data leg of each sensor before connecting to the network."
+ */
+
+//====================================================================================
+// Separate functions to read light Level with the 3 RGB LED color channels
+//===================================================================================================
+// Modfied from  //https://playground.arduino.cc/Learning/LEDSensor  I added PIND for speed
+// An explaination of the reverse-bias LED reading technique at https://www.sparkfun.com/news/2161
+// the readings get smaller as the amount of light increases and the response is logarithmic
+
+#ifdef readRedLED
+//==========================
+uint32_t readRedLEDchannel(){
+  uint32_t result;
+// Prep pin states - discharge any existing capacitance
+  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
+  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
+  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
+  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
+//READ red channel of LED
+  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(BLUE_PIN,LOW);//channel not being read in input mode
+  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(GREEN_PIN,LOW);//channel not being read in input mode
+  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
+  pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200); //Reverses Polarity on red to charge it as an internal capacitor
+  digitalWrite(LED_GROUND_PIN,LOW); //now (GROUND_PIN =sensing pin) is in INPUT mode - listening to the voltage on the LED
+  for (result = 0; result < 800000; result++) { // Counts how long it takes the LED to fall to the logic 0 voltage level
+    if ((PIND & (1 << LED_GROUND_PIN)) == 0) break;      // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
+    //but PIND uses port manipulation so executes much faster than digitalRead-> increasing the resolution of the sensor
+  } 
+   return result;
+}  // terminator for readRedLEDchannel() function
+#endif readRedLED
+
+#ifdef readGreenLED  //this function READs Green channel of 3-color indicator LED  
+//=============================
+uint32_t readGreenLEDchannel(){
+  uint32_t result;
+// Prep pin states
+  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
+  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
+  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
+  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
+// READ green channel of LED
+  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(RED_PIN,LOW);//channel not being read
+  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(BLUE_PIN,LOW);//channel not being read
+  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
+  pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200);//charge green channel internal capacitor
+  digitalWrite(LED_GROUND_PIN,LOW);
+  for (result = 0; result < 800000; result++) {
+    if ((PIND & (1 << LED_GROUND_PIN)) == 0) break; 
+  }
+  return result;
+}// terminator for readGreenLEDchannel() function
+
+#endif  //if readGreenLED
+
+#ifdef readBlueLED //this function READs BLUE channel of 3-color indicator LED
+//============================
+uint32_t readBlueLEDchannel(){
+  uint32_t result;
+// Prep pin states
+  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
+  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
+  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
+  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
+// READ blue channel of LED
+  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(RED_PIN,LOW);//channel not being read
+  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(GREEN_PIN,LOW);//channel not being read
+  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
+  pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200);//charge blue channel as an internal capacitor
+  digitalWrite(LED_GROUND_PIN,LOW);
+  for (result = 0; result < 800000; result++) {
+    if ((PIND & (1 << LED_GROUND_PIN)) == 0) break; 
+  }
+  return result;
+}  // terminator for readBlueLEDchannel() function
+#endif //readBlueLED
 
 //================================================================================================
 //  SIGNAL PROCESSING FUNCTIONS
@@ -748,5 +777,4 @@ newest = analogRead(A0);
 //================================================================================================
 // NOTE: for more complex signal filtering, look into the digitalSmooth function with outlier rejection
 // by Paul Badger at  http://playground.arduino.cc/Main/DigitalSmooth  works well with acclerometers, etc
-
 
