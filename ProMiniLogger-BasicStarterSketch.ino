@@ -1,4 +1,3 @@
-
 /* A basic datalogger script from the Cave Pearl Project 
 that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 
@@ -8,9 +7,8 @@ that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 //updated 20190118 with support for unregulated systems running directly from 2xAA lithium batteries
 //updated 20190204 with dynamic preSDsaveBatterycheck safety check
 //updated 20190219 with support for using indicator LED as a light sensor
-//updated 20190720 REMOVED support for DS18b20 Temperature sensor, for training exercise
 //updated 20190720 with support for tweaking the internal vref constant for accurate rail voltages
-//updated 20190722 with 'delayed start' in setup to synchronize RTC alarms with sampling interval
+//updated 20190722 with 'delayed start' in setup
 
 #include <Wire.h>
 #include <SPI.h>
@@ -21,7 +19,7 @@ that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 //============ CONFIGURATION SETTINGS =============================
 //change the text inside the brackets the Details / CollumnLabels to suit your configuration - you have to do this part manually
 const char deploymentDetails[] PROGMEM = "Ed's Logger:#23,LED used as sensor,1134880L constant,UTC time set,if found contact: name@email.edu"; 
-const char dataCollumnLabels[] PROGMEM = "TimeStamp,Battery(mV),SDsaveDelta(mV),RTCtemp(C),A0(Raw),DS18b20(raw),DS18b20(C),RedLED,GreenLED,BlueLED"; //gets written to second line of datafiles
+const char dataCollumnLabels[] PROGMEM = "TimeStamp,Battery(mV),SDsaveDelta(mV),RTCtemp(C),A0(Raw),RedLED,GreenLED,BlueLED"; //gets written to second line of datafiles
 //more information on storing data with the PROGMEM modifier @ http://www.gammon.com.au/progmem
 
 #define SampleIntervalMinutes 1  // Options: 1,2,3,4,5,6,10,12,15,20,30 ONLY (must be a divisor of 60)
@@ -89,19 +87,6 @@ int systemShutdownVoltage = 2850; // updated later depending on how you power yo
 #define analogInputPin A0
 int analogPinReading = 0;
 
-//TEMPERATURE Sensors enable if installed
-//=======================================
-//TEMP Sensor: comment this out if not connected:
-#define TS_DS18B20 8    //set this to the INPUT PIN connected to the sensors DATA wire
-// & don't forget you need a 4K7 pullup resistor (joining that data line to the high rail) for the DS18b20 to operate properly
-
-#if defined(TS_DS18B20)   // variables for DS18B20 temperature sensor only included if #define TS_DS18B20
-#include <OneWire.h>      // this sensor library from  http://www.pjrc.com/teensy/td_libs_OneWire.html
-OneWire ds(TS_DS18B20);      
- byte addr[8];
- int ds18b20_TEMP_Raw = 0;
- float ds18b20_TEMP_degC= 0.0;
-#endif  //defined(TS_DS18B20)
 
 //Global variables
 //******************
@@ -233,37 +218,8 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
 #endif
 
 //====================================================================
-//DS18b20 initialization 
+//sensor initializations go here:
 //====================================================================
-#ifdef TS_DS18B20
-  if ( !ds.search(addr))
-  {
-    Serial.println(F("ERROR: Did not find the DS18B20 Temp Sensor!"));Serial.flush();
-    return;
-  }
-  else
-  { 
-    //set the DS18b20 to 12 bit (high resolution) mode
-    ds.reset();             // rest 1-Wire
-    ds.select(addr);        // select DS18B20
-    ds.write(0x4E);         // write on scratchPad
-    ds.write(0x00);         // User byte 0 - Unused
-    ds.write(0x00);         // User byte 1 - Unused
-    ds.write(0x7F);         // set up en 12 bits (0x7F)
-    ds.reset();             // reset 1-Wire
-    ds.select(addr);        // select DS18B20 
-    ds.write(0x48);         // copy scratchpad to EEPROM
-    delay(15);              // wait for end of EEPROM write
-    
-    Serial.print(F("DS18B20 found @ ROM addr:"));
-    for (uint8_t i = 0; i < 8; i++) {
-      Serial.write(' ');
-      Serial.print(addr[i], HEX);
-    }
-    Serial.println();Serial.flush();
-  }  // if ( !ds.search(addr))
-  
-#endif  //for #ifdef TS_DS18B20
 
 //setting UNUSED digital pins to input pullup reduces noise & risk of accidental short
 //pinMode(7,INPUT_PULLUP); //only if you do not have anything connected to this pin
@@ -367,14 +323,12 @@ analogPinReading = median_of_3( analogRead(analogInputPin), analogRead(analogInp
 //you can use this filter with any sensor that generates only positive integer values
 
 //=====================================
-//Read the DS18b20 temperature Sensor:
-#ifdef TS_DS18B20    
-  ds18b20_TEMP_Raw = readDS18B20Temp();// Note: 750msec of sleep is embedded in this function while waiting for data!
-  ds18b20_TEMP_degC =(float)ds18b20_TEMP_Raw*0.0625; //many 12 bit sensors use this same calculation
-  #ifdef ECHO_TO_SERIAL
-  Serial.print(F("DS18b20 Temp is: "));Serial.print(ds18b20_TEMP_degC); 
-  #endif
-#endif
+//Read the other sensors here
+
+
+
+
+
 digitalWrite(GREEN_PIN, LOW);
 
 //========================================================
@@ -435,21 +389,6 @@ if (preSDsaveBatterycheck < (systemShutdownVoltage+safetyMargin4SDsave+100)) {
     file.print(analogPinReading); 
     file.print(",");   
 
-#ifdef TS_DS18B20
-    file.print(ds18b20_TEMP_Raw);
-    file.print(",");
-    file.print(ds18b20_TEMP_degC,3);
-    file.print(",");
-
-    //OR to save program memory
-    //stringBuffer[0] = '\0'; //empties stringBuffer by making first character a 'null' value
-    //dtostrf((ds18b20_TEMP_degC),7,3,stringBuffer); //7 characters total, with 3 ASCII characters after the decimal point.
-    //file.print(stringBuffer); //dtostrf is a better way to save exactly the right number of float digits to SD card
-    //what if ds18b20_TEMP_degC had the value 1.6794, what would be the output then? Well, it would still be 7 characters long, with 3 characters after the decimal point, but it would be padded at the beginning with spaces. I.e.   1.679
-    //file.print(integerBuffer);file.print(".");file.print(integerBuffer2);
-    
-#endif
-   
 #ifdef readRedLED 
     file.print(redLEDreading);
     file.print(",");
@@ -624,53 +563,6 @@ int getRailVoltage()    // modified from http://forum.arduino.cc/index.php/topic
 }  // terminator for getRailVoltage() function
 
 //====================================================================================
-// DS18B20  ONE WIRE TEMPERATURE reading function  https://www.best-microcontroller-projects.com/ds18b20.html
-// this function from library at http://www.pjrc.com/teensy/td_libs_OneWire.html
-// also see Dallas Temperature Control library by Miles Burton: http://milesburton.com/Dallas_Temperature_Control_Library
-
-#if defined(TS_DS18B20)
-int readDS18B20Temp()
-{
-  byte data[2]; //byte data[12]; there are more bytes of data to be read...
-  ds.reset();
-  ds.select(addr);
-  ds.write(0x44); // start conversion, read temperature & store it in the scratchpad
-  LowPower.powerDown(SLEEP_500MS, ADC_OFF, BOD_ON); // Put the Arduino processor to sleep
-  LowPower.powerDown(SLEEP_250MS, ADC_OFF, BOD_ON); // while the DS18b20 gathers it's reading
-  delay(5); //regulator stabilization after uC wakeup
-  byte present = ds.reset();
-  ds.select(addr);
-  ds.write(0xBE); // Read Scratchpad
-  for (int i = 0; i < 2; i++)
-  {
-    data[i] = ds.read();
-  }
-  byte MSB = data[1];
-  byte LSB = data[0];
-  int tempRaw = ((MSB << 8) | LSB); //using two's compliment //TEMP_degC = tempRaw / 16;
-  return tempRaw;
-}
-#endif
-
-//The time needed between the CONVERT_T command and the READ_SCRATCHPAD command has to be at least
-//750 millisecs (but can be shorter if using a D18B20 set to resolution < 12 bits)
-//if you start getting "85" all the time you did not wait long enough
-// One quirk of this sensor is that Dallas choose a value inside the valid range as the powerup default.
-// The DS18b20 sensor will reset to 85C on power up, and this can happen when doing a long conversion and power falls too low.
-// The sensor appears on the bus, since it’s able to use parasitic power, but as soon as you try to read a temperature it will fall off the bus.
-// The sensor might also report 85C if the temperature is retrieved but the sensor has not been commanded
-
-/* from Chris Shucksmith:  http://www.jon00.me.uk/onewireintro.shtml
- * "If you intend to have a large 1-wire network, it is important that you design the network correctly, otherwise you will have problems with 
- * timing/reflection issues and loss of data. For very small networks, it is possible to connect each sensor in a star or radial arrangement. 
- * This means that each sensor is connected via its own cable back to a central point and then connected to the 1-wire to serial adapter. 
- * However, it is strongly recommend that you connect each sensor to a single continuous cable which loops from sensor to sensor in turn (daisy chain). 
- * This will reduce potential misreads due to reflections in the cable. Each sensor should have a maximum of 50mm (2") of cable connected off the 
- * main highway. Even using this method, connecting more than 10-15 sensors will still cause problems due to loading of the data bus. 
- * To minimise this effect, always place a 100-120 ohm resistor in the data leg of each sensor before connecting to the network."
- */
-
-//====================================================================================
 // Separate functions to read light Level with the 3 RGB LED color channels
 //===================================================================================================
 // Modfied from  //https://playground.arduino.cc/Learning/LEDSensor  I added PIND for speed
@@ -773,4 +665,6 @@ newest = analogRead(A0);
 //================================================================================================
 // NOTE: for more complex signal filtering, look into the digitalSmooth function with outlier rejection
 // by Paul Badger at  http://playground.arduino.cc/Main/DigitalSmooth  works well with acclerometers, etc
+
+
 
