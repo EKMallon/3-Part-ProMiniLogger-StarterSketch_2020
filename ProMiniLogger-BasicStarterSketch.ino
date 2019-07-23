@@ -1,7 +1,3 @@
-// ADD sync-delay before start to the base code (which only turns on if you enable LED readings) - this was implemented in earlier versions when I was still developing the LED readings
-// _20190505_LED_DarkCurrent_D6789_ULints_RBG_15min versions of the LED reading code (with blue led on while waiting)
-// could make a much simpler version of this that just sets the alarm and waits for the pin level to drop?
-
 
 /* A basic datalogger script from the Cave Pearl Project 
 that sleeps the datalogger and wakes from DS3231 RTC alarms*/
