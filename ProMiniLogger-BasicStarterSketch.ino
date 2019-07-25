@@ -340,7 +340,7 @@ digitalWrite(GREEN_PIN, LOW);
 #ifdef readRedLED 
 uint32_t redLEDreading=readRedLEDchannel(); //call the function which reads the RED led channel
   #ifdef ECHO_TO_SERIAL
-   Serial.print(F("RedLED= "));Serial.print(redLEDreading,3);Serial.flush();
+   Serial.print(F("RedLED= "));Serial.print(redLEDreading);Serial.flush();
   #endif
 #endif  //readRedLED 
 
