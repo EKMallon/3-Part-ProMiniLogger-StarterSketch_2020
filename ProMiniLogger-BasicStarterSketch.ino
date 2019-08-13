@@ -89,7 +89,7 @@ int systemShutdownVoltage = 2850; // updated later depending on how you power yo
 byte bytebuffer1 = 0;     // for functions that return a byte - usually comms with sensors
 byte bytebuffer2 = 0;     // second buffer for 16-bit sensor register readings
 int integerBuffer = 9999;    // for temp-swapping ADC readings
-float floatBuffer = 9999.9;  // for temporary float calculations
+float floatbuffer = 9999.9;  // for temporary float calculations
 #define analogInputPin A0    //for analog pin reading
 int analogPinReading = 0;
 
@@ -395,7 +395,7 @@ pinMode(RED_PIN,INPUT_PULLUP); //indicate SD saving
   analogReference(DEFAULT);analogRead(BatteryPin); delay(5);  //throw away the first reading when using high impedance voltage dividers!
   floatbuffer = float(analogRead(BatteryPin));
   floatbuffer = (floatbuffer+0.5)*(3.3/1024.0)*4.030303; // 4.0303 = (Rhigh+Rlow)/Rlow for a 10M/3.3M voltage divider combination
-  preSDsaveBatterycheck=int(floatbuffer*1000.0);
+  int preSDsaveBatterycheck=int(floatbuffer*1000.0);
 #endif
 if (preSDsaveBatterycheck < (systemShutdownVoltage+safetyMargin4SDsave+50)) {  //extra 50 thrown in due to 1.1vref uncertainty
     error_shutdown(); //shut down the logger because the voltage is too low for SD saving
