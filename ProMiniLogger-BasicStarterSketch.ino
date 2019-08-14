@@ -121,11 +121,12 @@ bitSet (DIDR0, ADC2D);  // disable digital buffer on A2
 bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
 //Once the input buffer is disabled, a digitalRead on those A-pins will always be zero.
 
-  #if defined (unregulated2xLithiumAA) || defined(ECHO_TO_SERIAL) // two situations with no voltage on the A6 resistor divider
-  systemShutdownVoltage = 2750; // minimum Battery voltage when running from 2x LITHIUM AA's
-  #endif
   #ifdef voltageRegulated
   systemShutdownVoltage = 3400; // 3400 is the minimum allowd input to the Mic5205 regulator - alkalines often drop by 200mv or more under load
+  #endif
+  
+  #if defined (unregulated2xLithiumAA) || defined(ECHO_TO_SERIAL) // two situations with no voltage on the A6 resistor divider
+  systemShutdownVoltage = 2750; // minimum Battery voltage when running from 2x LITHIUM AA's
   #endif
   
   // Setting the SPI pins high helps some sd cards go to sleep faster
