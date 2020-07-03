@@ -20,7 +20,7 @@
 
 //============ CONFIGURATION SETTINGS =============================
 //change the text inside the brackets here to suit your configuration
-const char deploymentDetails[] PROGMEM = "Ed's Logger:#23,LED used as sensor,1134880L constant,UTC time set,if found contact: name@email.edu"; 
+const char deploymentDetails[] PROGMEM = "Joe's Logger:#23,LED used as sensor,1134880L constant,UTC time set,if found contact: yourname@email.edu"; 
 const char dataCollumnLabels[] PROGMEM = "TimeStamp,Battery(mV),SDsaveDelta(mV),RTCtemp(C),A0(Raw),DS18b20(raw),DS18b20(C),RedLED,GreenLED,BlueLED"; //collumn header labels for your data
 //more info on the PROGMEM modifier @ http://www.gammon.com.au/progmem
 
@@ -231,6 +231,9 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
 //DS18b20 initialization 
 //====================================================================
 #ifdef TS_DS18B20
+  
+  ds.search(addr);
+  
   if ( !ds.search(addr))
   {
     Serial.println(F("ERROR: Did not find the DS18B20 Temp Sensor!"));Serial.flush();
@@ -680,7 +683,7 @@ uint32_t readRedLEDchannel(){
   pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
   pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200); //Reverses Polarity on red to charge it as an internal capacitor
   digitalWrite(LED_GROUND_PIN,LOW); //now (GROUND_PIN =sensing pin) is in INPUT mode - listening to the voltage on the LED
-  for (result = 0; result < 800000; result++) { // Counts how long it takes the LED to fall to the logic 0 voltage level
+  for (result = 0; result < 200000; result++) { // Counts how long it takes the LED to fall to the logic 0 voltage level
     if ((PIND & (1 << LED_GROUND_PIN)) == 0) break;      // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
     //but PIND uses port manipulation so executes much faster than digitalRead-> increasing the resolution of the sensor
   } 
@@ -703,7 +706,7 @@ uint32_t readGreenLEDchannel(){
   pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
   pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200);//charge green channel internal capacitor
   digitalWrite(LED_GROUND_PIN,LOW);
-  for (result = 0; result < 800000; result++) {
+  for (result = 0; result < 200000; result++) {
     if ((PIND & (1 << LED_GROUND_PIN)) == 0) break; 
   }
   return result;
@@ -726,7 +729,7 @@ uint32_t readBlueLEDchannel(){
   pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
   pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200);//charge blue channel as an internal capacitor
   digitalWrite(LED_GROUND_PIN,LOW);
-  for (result = 0; result < 800000; result++) {
+  for (result = 0; result < 200000; result++) {
     if ((PIND & (1 << LED_GROUND_PIN)) == 0) break; 
   }
   return result;
