@@ -358,7 +358,7 @@ analogPinReading = median_of_3( analogRead(analogInputPin), analogRead(analogInp
   ds18b20_TEMP_Raw = readDS18B20Temp();// Note: 750msec of sleep is embedded in this function while waiting for data!
   ds18b20_TEMP_degC =(float)ds18b20_TEMP_Raw*0.0625; //many 12 bit sensors use this same calculation
   #ifdef ECHO_TO_SERIAL
-  Serial.print(F("DS18b20 Temp is: "));Serial.print(ds18b20_TEMP_degC); 
+  Serial.print(F("DS18b20 Temp is: "));Serial.println(ds18b20_TEMP_degC); 
   #endif
 #endif
 digitalWrite(GREEN_PIN, LOW);
