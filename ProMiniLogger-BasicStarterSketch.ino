@@ -44,10 +44,10 @@ const char dataCollumnLabels[] PROGMEM = "TimeStamp,Battery(mV),SDsaveDelta(mV),
 // you can read only one LED color channel as a light sensor by disabling the other two defines here
 // At low light levels it can take several seconds for each channel to make a reading
 // So use a sampling interval longer than 1 minute if you read all three colors or you could over-run the wakeup alarm (which causes a 24hour sleep interval)
-#define readRedLED ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation
-#define readGreenLED ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation 
-#define readBlueLED ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation 
- #define LED_GROUND_PIN 3 // to use the indicator LED as a light sensor you must ground it through a digital I/O pin from D3 to D7
+//#define readRedLED ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation
+//#define readGreenLED ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation 
+//#define readBlueLED ON // enabling readLEDsensor define ADDS LED AS A SENSOR readings to the loggers default operation 
+#define LED_GROUND_PIN 3 // to use the indicator LED as a light sensor you must ground it through a digital I/O pin from D3 to D7
 #define RED_PIN 4   //change these numbers to suit the way you connected the indicator LED
 #define GREEN_PIN 5
 #define BLUE_PIN 6 
