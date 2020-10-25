@@ -1,9 +1,9 @@
 <img src="https://github.com/EKMallon/The_Cave_Pearl_Project_CURRENT_codebuilds/blob/master/images/CavePearlProjectBanner_130x850px.jpg">
 
 # Pro Mini Datalogger - Basic Starter Sketch
-A starter script for the 2019 & 2020 'Classroom Logger' build tutorials
+A simple data logger script for our 2019 & 2020 'Classroom Logger' tutorials. This code is hopefully simple enough that anyone can read through it and understand what is happening from the comments. The idea is to provide low power sleep & RTC alarm wakeup functionality as a starting point for student projects.
 
-This basic data logger script that will run on all of the Pro-Mini based "Modules &amp; Jumper Wires" loggers described in the Sensors paper: http://www.mdpi.com/1424-8220/18/2/530 , though the current iteration is for the 'unregulated' 2020 classroom logger build @  
+With minor tweaks this script should run on all of the Pro-Mini based "Modules &amp; Jumper Wires" loggers described in the Sensors paper: http://www.mdpi.com/1424-8220/18/2/530 , though the current iteration is for the 'unregulated' 2020 classroom logger build @  
 https://thecavepearlproject.org/2020/10/22/pro-mini-classroom-datalogger-2020-update/
 
 <img src="https://github.com/EKMallon/Pro-Mini-Datalogger---Basic-Starter-Sketch/blob/master/images/2020_ClassroomLogger-Assembled_900pixw.jpg" height="639" width="600">
@@ -12,7 +12,8 @@ In general you only have to do four things to add a new sensor to this logger ba
 
 1) Download and #include the library that drives your sensor. This is usually provided by the sensor vendor (Adafruit, Sparkfun, etc) but there a plenty of other sources if you google it. Note that there are often many other sensor library options here on GitHub if you search for them.
 2) Connect your sensor as appropriate. I2C sensors are often the easiest ones to work with, and should be connected in parallel with the RTC module (since is also an I2C device) the easiest way to do this is via the four-pin cascade port on the RTC module itself (which also provides 4K7 pullups for the bus)
-3) Add commands to take a reading from that sensor and store it into a variable at the beginning of the main loop. This is usually means adding something like: int YourSensorVariable=readsensor();  with whatever functions are provided by the library
+3) Add commands to take a reading from that sensor and store it into a variable at the beginning of the main loop. This is usually means adding something like: 
+int YourSensorVariable=readsensor();  referencing whatever functions were provided by the library
 4) In the middle of the code where the data is written to the SD card add:
 
 **file.print(YourSensorVariable);** // add this to the series of print statements between file.open & file.close();
