@@ -6,7 +6,7 @@ A starter script for the 2019 & 2020 Cave Pearl Project Classroom Logger build t
 This repository contains a basic data logger script that will run on all of the Pro-Mini based "Modules &amp; Jumper Wires" loggers described in the Sensors paper: http://www.mdpi.com/1424-8220/18/2/530 which has been updated for the 'unregulated' 2020 classroom logger build described at 
 https://thecavepearlproject.org/2020/10/22/pro-mini-classroom-datalogger-2020-update/
 
-<img src="https://github.com/EKMallon/Pro-Mini-Datalogger---Basic-Starter-Sketch/blob/master/images/2020_ClassroomLogger-Assembled_900pixw.jpg">
+<img src="https://github.com/EKMallon/Pro-Mini-Datalogger---Basic-Starter-Sketch/blob/master/images/2020_ClassroomLogger-Assembled_900pixw.jpg" height="639" width="600">
 
 In general you only have to do four things to add a new sensor to this logger base code:
 
