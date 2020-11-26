@@ -329,7 +329,7 @@ void loop() {
   //rtc_TEMP_degC = (rtc_TEMP_degC * 1.8) + 32.0; // To Convert Celcius to Fahrenheit
 }
 else {
-  rtc_TEMP_degC = 0;  //if rtc_TEMP_degC contains zero, then you had a problem reading from the RTC!
+  rtc_TEMP_degC = 999.9;  //if rtc_TEMP_degC contains 999.9, then you had a problem reading from the RTC!
 }
 #ifdef ECHO_TO_SERIAL
 Serial.print(F(" TEMPERATURE from RTC is: "));
