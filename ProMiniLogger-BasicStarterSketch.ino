@@ -171,7 +171,7 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
   #if defined (unregulated2xLithiumAA) || defined(ECHO_TO_SERIAL) 
   BatteryReading=getRailVoltage(); //If you are running from raw battery power (with no regulator) VccBGap IS the battery voltage
   #else  // #ifdef voltageRegulated:
-  analogReference(DEFAULT);analogRead(BatteryPin); delay(5);  //throw away the first reading when using high impedance voltage dividers!
+  analogReference(DEFAULT);analogRead(BatteryPin); delay(10);  //throw away the first reading when using high impedance voltage dividers!
   floatbuffer = float(analogRead(BatteryPin));
   floatbuffer = (floatbuffer+0.5)*(3.3/1024.0)*4.030303; // 4.0303 = (Rhigh+Rlow)/Rlow for a 10M/3.3M voltage divider combination
   BatteryReading=int(floatbuffer*1000.0);
@@ -342,14 +342,16 @@ pinMode(GREEN_PIN,INPUT_PULLUP); //green indicates sensor readings taking place
 LowPower.powerDown(SLEEP_30MS, ADC_OFF, BOD_ON); //optional delay here to make indicator pip more visible
 //============================================================
 // Read Analog Input
-analogReference(DEFAULT);analogRead(analogInputPin); //always throw away the first reading
-delay(5);  //optional 5msec delay lets ADC input cap adjust if needed
+analogReference(DEFAULT);analogRead(analogInputPin); //always throw away the first ADC reading
+delay(10);  //10msec delay gives Aref capacitor time to adjust
 
 //now you can do a single analog reading one time 
 analogPinReading = analogRead(analogInputPin);
 // OR you can read the analog input line multiple times, and feed those readings into an averaging or smoothing filter
 // One of my favorites for removing "single spike" errors from noisy sensor inputs is median3 which takes three values/readings as input
-analogPinReading = median_of_3( analogRead(analogInputPin), analogRead(analogInputPin), analogRead(analogInputPin));
+  
+//    analogPinReading = median_of_3( analogRead(analogInputPin), analogRead(analogInputPin), analogRead(analogInputPin));
+  
 //you can use this filter with any sensor that generates only positive integer values
 
 //=====================================
