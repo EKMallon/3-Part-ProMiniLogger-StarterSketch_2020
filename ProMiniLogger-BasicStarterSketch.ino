@@ -158,7 +158,7 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
   digitalWrite(GREEN_PIN, LOW); 
   pinMode(RED_PIN,INPUT_PULLUP);    // red is usually dimmest color
   
-  Serial.begin(9600);    // Open serial communications and wait for port to open:
+  Serial.begin(9600);    // Always serial.begin because if 'anything' in some random library tries to print without it you get a HARD system freeze
   Wire.begin();          // Start the i2c interface
   RTC.begin();           // RTC initialization:
   RTC.turnOffAlarm(1);
