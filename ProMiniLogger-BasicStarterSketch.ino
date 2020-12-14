@@ -199,6 +199,8 @@ bitSet (DIDR0, ADC3D);  // disable digital buffer on A3
   delay(25); //sd.begin hits the power supply pretty hard
   
 // Find the next availiable file name // from https://learn.adafruit.com/adafruit-feather-32u4-adalogger/using-the-sd-card
+// generates a new file on every restart. If you SD card is mysteriously filling up with files then there's a good
+// chance you logger is brown out power cycling -> check if one of your sensors is pulling too much current.
 // O_CREAT = create the file if it does not exist,  O_EXCL = fail if the file exists, O_WRITE - open for write
   if (!file.open(FileName, O_CREAT | O_EXCL | O_WRITE)) { // note that every system restart will generate new log files!
     for (int i = 1; i < 500; i++) {  // FAT16 has a limit of 512 files entries in root directory
