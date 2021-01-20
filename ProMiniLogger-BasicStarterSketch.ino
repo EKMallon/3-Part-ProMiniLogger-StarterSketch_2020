@@ -690,7 +690,8 @@ uint32_t readRedLEDchannel(){
   for (result = 0; result < 200000; result++) { // Counts how long it takes the LED to fall to the logic 0 voltage level
     if ((PIND & (1 << LED_GROUND_PIN)) == 0) break;      // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
     //but PIND uses port manipulation so executes much faster than digitalRead-> increasing the resolution of the sensor
-  } 
+  }
+   pinMode(LED_GROUND_PIN,OUTPUT); //back to normal 'ground' pin
    return result;
 }  // terminator for readRedLEDchannel() function
 #endif readRedLED
@@ -713,7 +714,8 @@ uint32_t readGreenLEDchannel(){
   for (result = 0; result < 200000; result++) {
     if ((PIND & (1 << LED_GROUND_PIN)) == 0) break; 
   }
-  return result;
+   pinMode(LED_GROUND_PIN,OUTPUT); //back to normal 'ground' pin
+   return result;
 }// terminator for readGreenLEDchannel() function
 
 #endif  //if readGreenLED
@@ -736,7 +738,8 @@ uint32_t readBlueLEDchannel(){
   for (result = 0; result < 200000; result++) {
     if ((PIND & (1 << LED_GROUND_PIN)) == 0) break; 
   }
-  return result;
+   pinMode(LED_GROUND_PIN,OUTPUT); //back to normal 'ground' pin
+   return result;
 }  // terminator for readBlueLEDchannel() function
 #endif //readBlueLED
 
