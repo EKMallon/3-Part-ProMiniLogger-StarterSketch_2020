@@ -688,8 +688,8 @@ uint32_t readRedLEDchannel(){
   pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200); //Reverses Polarity on red to charge it as an internal capacitor
   digitalWrite(LED_GROUND_PIN,LOW); //now (GROUND_PIN =sensing pin) is in INPUT mode - listening to the voltage on the LED
   for (result = 0; result < 200000; result++) { // Counts how long it takes the LED to fall to the logic 0 voltage level
-    if ((PIND & (1 << LED_GROUND_PIN)) == 0) break;      // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
-    //but PIND uses port manipulation so executes much faster than digitalRead-> increasing the resolution of the sensor
+    if ((PIND & (1 << LED_GROUND_PIN)) == 0) break;  // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
+    //but PIND is much faster than digitalRead - this PIND loop take about 20 system clock cycles per increment of result variable
   }
    pinMode(LED_GROUND_PIN,OUTPUT); //back to normal 'ground' pin
    return result;
