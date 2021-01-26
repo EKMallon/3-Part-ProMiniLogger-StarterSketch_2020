@@ -672,6 +672,9 @@ int readDS18B20Temp()
 // An explaination of the reverse-bias LED reading technique at https://www.sparkfun.com/news/2161
 // the readings get smaller as the amount of light increases and the response is logarithmic
 
+// Note: do not try to sleep the processor during the counting loop - when sleeping, any GPIO that 
+// is not used an an interrupt input has its input buffer disconnected from the pin and is clamped LOW by the 'sleep' MOSFET.
+
 #ifdef readRedLED
 //==========================
 uint32_t readRedLEDchannel(){
