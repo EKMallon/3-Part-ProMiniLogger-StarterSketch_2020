@@ -678,47 +678,57 @@ int readDS18B20Temp()
 #ifdef readRedLED
 //==========================
 uint32_t readRedLEDchannel(){
-  uint32_t result;
+  uint32_t loopTime;  uint64_t startTime = 0;
+  byte groundPinMask = (1 << LED_GROUND_PIN);
 // Prep pin states - discharge any existing capacitance
-  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
+  pinMode(LED_GROUND_PIN,OUTPUT);digitalWrite(LED_GROUND_PIN,HIGH); //reversing polarity to charge LED internal cap
+  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);//this is our read pin
+  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT); 
   digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
-  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
-  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
-//READ red channel of LED
-  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(BLUE_PIN,LOW);//channel not being read in input mode
-  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(GREEN_PIN,LOW);//channel not being read in input mode
-  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
-  pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200); //Reverses Polarity on red to charge it as an internal capacitor
-  digitalWrite(LED_GROUND_PIN,LOW); //now (GROUND_PIN =sensing pin) is in INPUT mode - listening to the voltage on the LED
-  for (result = 0; result < 200000; result++) { // Counts how long it takes the LED to fall to the logic 0 voltage level
-    if ((PIND & (1 << LED_GROUND_PIN)) == 0) break;  // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
-    //but PIND is much faster than digitalRead - this PIND loop take about 20 system clock cycles per increment of result variable
+ 
+  pinMode(LED_GROUND_PIN,INPUT);   //now set (GROUND_PIN =sensing pin) into INPUT mode
+  digitalWrite(LED_GROUND_PIN,LOW);
+  startTime = micros();            //micros() resolution = 8 clock tickson the 3.3v 8MHz prominis
+    
+  pinMode(BLUE_PIN,INPUT);   //non reading channels set to input
+  pinMode(GREEN_PIN,INPUT);  //so they don't participate in the photo discharge
+  for (loopTime = 0; loopTime < 400000; loopTime++) { // Counts how long it takes the LED to fall to the logic 0 voltage level
+    if ((PIND & groundPinMask) == 0) break; // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
+    //PIND uses port manipulation so executes much faster than digitalRead-> increasing the resolution of the sensor
   }
-   pinMode(LED_GROUND_PIN,OUTPUT); //back to normal 'ground' pin
-   return result;
+   loopTime = micros()-startTime; //note reusing loopTime variable here to hold the micros time
+  
+   pinMode(RED_PIN,INPUT);
+   pinMode(LED_GROUND_PIN,OUTPUT); //back to normal 'ground' pin operation
+   return loopTime;
 }  // terminator for readRedLEDchannel() function
 #endif readRedLED
 
 #ifdef readGreenLED  //this function READs Green channel of 3-color indicator LED  
 //=============================
 uint32_t readGreenLEDchannel(){
-  uint32_t result;
-// Prep pin states
-  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
+  uint32_t loopTime;  uint64_t startTime = 0;
+  byte groundPinMask = (1 << LED_GROUND_PIN);
+// Prep pin states - discharge any existing capacitance
+  pinMode(LED_GROUND_PIN,OUTPUT);digitalWrite(LED_GROUND_PIN,HIGH); //reversing polarity to charge LED internal cap
+  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT); //this is our read pin
   digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
-  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
   digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
-// READ green channel of LED
-  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(RED_PIN,LOW);//channel not being read
-  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(BLUE_PIN,LOW);//channel not being read
-  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
-  pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200);//charge green channel internal capacitor
+
+  pinMode(LED_GROUND_PIN,INPUT);   //now set (GROUND_PIN =sensing pin) into INPUT mode
   digitalWrite(LED_GROUND_PIN,LOW);
-  for (result = 0; result < 200000; result++) {
-    if ((PIND & (1 << LED_GROUND_PIN)) == 0) break; 
+  startTime = micros(); //micros() resolution = 8 clock tickson the 3.3v 8MHz prominis
+  
+  pinMode(BLUE_PIN,INPUT);   //non reading channels set to input
+  pinMode(RED_PIN,INPUT);    //so they don't participate in the photo discharge
+  for (loopTime = 0; loopTime < 400000; loopTime++) { 
+    if ((PIND & groundPinMask) == 0) break; // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
+    //PIND uses port manipulation so executes much faster than digitalRead-> increasing the resolution of the sensor
   }
-   pinMode(LED_GROUND_PIN,OUTPUT); //back to normal 'ground' pin
-   return result;
+   loopTime = micros()-startTime; //note reusing loopTime variable here to hold the micros time
+   pinMode(GREEN_PIN,INPUT);
+   pinMode(LED_GROUND_PIN,OUTPUT); //back to normal 'ground' pin operation
+   return loopTime;
 }// terminator for readGreenLEDchannel() function
 
 #endif  //if readGreenLED
@@ -726,23 +736,29 @@ uint32_t readGreenLEDchannel(){
 #ifdef readBlueLED //this function READs BLUE channel of 3-color indicator LED
 //============================
 uint32_t readBlueLEDchannel(){
-  uint32_t result;
-// Prep pin states
-  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
+  uint32_t loopTime;  uint64_t startTime = 0;
+  byte groundPinMask = (1 << LED_GROUND_PIN);
+// Prep pin states - discharge any existing capacitance
+  pinMode(LED_GROUND_PIN,OUTPUT);digitalWrite(LED_GROUND_PIN,HIGH); //reversing polarity to charge LED internal cap
+  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT); //this is our read pin
   digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
-  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
   digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
-// READ blue channel of LED
-  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(RED_PIN,LOW);//channel not being read
-  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(GREEN_PIN,LOW);//channel not being read
-  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(200);digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
-  pinMode(LED_GROUND_PIN,INPUT_PULLUP);delayMicroseconds(200);//charge blue channel as an internal capacitor
+
+  pinMode(LED_GROUND_PIN,INPUT);   //now set (GROUND_PIN =sensing pin) into INPUT mode
   digitalWrite(LED_GROUND_PIN,LOW);
-  for (result = 0; result < 200000; result++) {
-    if ((PIND & (1 << LED_GROUND_PIN)) == 0) break; 
+  startTime = micros();            //micros() resolution = 8 clock tickson the 3.3v 8MHz prominis
+  
+  pinMode(GREEN_PIN,INPUT);   //non reading channels set to input
+  pinMode(RED_PIN,INPUT);  //so they don't participate in the photo discharge
+  
+  for (loopTime = 0; loopTime < 400000; loopTime++) { // Counts how long it takes the LED to fall to the logic 0 voltage level
+    if ((PIND & groundPinMask) == 0) break; // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
+    //PIND uses port manipulation so executes much faster than digitalRead-> increasing the resolution of the sensor
   }
-   pinMode(LED_GROUND_PIN,OUTPUT); //back to normal 'ground' pin
-   return result;
+   loopTime = micros()-startTime; //note reusing loopTime variable here to hold the micros time
+   pinMode(GREEN_PIN,INPUT);
+   pinMode(LED_GROUND_PIN,OUTPUT); //back to normal 'ground' pin operation
+   return loopTime;
 }  // terminator for readBlueLEDchannel() function
 #endif //readBlueLED
 
