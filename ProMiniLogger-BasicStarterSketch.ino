@@ -681,19 +681,13 @@ uint32_t readRedLEDchannel(){
   uint32_t loopTime;  uint64_t startTime = 0;
   byte gndPin =(1 << LED_GROUND_PIN); // same as _BV(LED_GROUND_PIN)
   
- // Prep pin states - discharge any existing capacitance
-  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
-
-// forward current discharges the internal capacitor
-// do this from highest to lowest vF/bandgap
-  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(100);digitalWrite(BLUE_PIN,LOW);//channel not being read in input mode
-  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(100);digitalWrite(GREEN_PIN,LOW);//channel not being read in input mode
-  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(100);digitalWrite(RED_PIN,LOW);
-  pinMode(RED_PIN,OUTPUT);
-  
-  pinMode(LED_GROUND_PIN,INPUT_PULLUP); //reversing polarity charges the internal capacitance
-  delayMicroseconds(300);
+  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
+  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,INPUT);
+  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,INPUT);
+  pinMode(LED_GROUND_PIN,INPUT_PULLUP); 
+  delayMicroseconds(300); //Reverses Polarity on red to charge it as an internal capacitor
   digitalWrite(LED_GROUND_PIN,LOW);
+  
   startTime = micros(); //micros() resolution = 8 clock tickson the 3.3v 8MHz prominis 
 
   for (loopTime = 0; loopTime < 1200000; loopTime++) { // Counts how long it takes the LED to fall to the logic 0 voltage level
@@ -714,16 +708,14 @@ uint32_t readGreenLEDchannel(){
   uint32_t loopTime;  uint64_t startTime = 0;
   byte gndPin = (1 << LED_GROUND_PIN);
 
-  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT); //reversing polarity to charge LED internal cap
-// forward current discharges the internal capacitor // do this from highest to lowest vF/bandgap
-  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(100);digitalWrite(BLUE_PIN,LOW);//channel not being read
-  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(100);digitalWrite(RED_PIN,LOW); //channel not being read
-  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(100);digitalWrite(GREEN_PIN,LOW);
-  pinMode(GREEN_PIN,OUTPUT); //this is our reading pin
+  // Prep pin states
+  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
+  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,INPUT);
+  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,INPUT);
+  pinMode(LED_GROUND_PIN,INPUT_PULLUP); 
+  delayMicroseconds(300); //Reverses Polarity on red to charge it as an internal capacitor
+  digitalWrite(LED_GROUND_PIN,LOW);//PIND = gndPin;//same PORTD &= ~(gndPin); //same as digitalWrite(LED_GROUND_PIN,LOW);
 
-  pinMode(LED_GROUND_PIN,INPUT_PULLUP);
-  delayMicroseconds(300); //Reverses Polarity on red to charge the internal capacitance
-  digitalWrite(LED_GROUND_PIN,LOW);//now set (GROUND_PIN =sensing pin) into INPUT mode
   startTime = micros();//micros() resolution = 8 clock tickson the 3.3v 8MHz prominis
 
   for (loopTime = 0; loopTime < 1200000; loopTime++) { // on my led 1.2M goes to approximately 0 LUX
@@ -748,18 +740,16 @@ uint32_t readBlueLEDchannel(){
   byte nonReadPins = _BV(_BV(RED_PIN) | _BV(GREEN_PIN));
   //_BV() is a macro that shifts 1 to left by the argument: _BV(5) returns 0b00100000
   
-// Prep pin states
-  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
-  pinMode(GREEN_PIN,INPUT_PULLUP);delayMicroseconds(100);digitalWrite(GREEN_PIN,LOW);
-  pinMode(RED_PIN,INPUT_PULLUP);delayMicroseconds(100);digitalWrite(RED_PIN,LOW);
-  pinMode(BLUE_PIN,INPUT_PULLUP);delayMicroseconds(100);digitalWrite(BLUE_PIN,LOW);
-  pinMode(BLUE_PIN,OUTPUT); //this is the channel we are reading
-
-  pinMode(LED_GROUND_PIN,INPUT_PULLUP); //reversing polarity charges the internal capacitance
-  delayMicroseconds(300);
-  digitalWrite(LED_GROUND_PIN,LOW);  //now set (GROUND_PIN =sensing pin) into INPUT mode
+  // Prep pin states
+  byte gndPin =(1 << LED_GROUND_PIN);//same as _BV(LED_GROUND_PIN)
+  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
+  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,INPUT);
+  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,INPUT);
+  pinMode(LED_GROUND_PIN,INPUT_PULLUP); 
+  delayMicroseconds(300); //Reverses Polarity on red to charge it as an internal capacitor
+  digitalWrite(LED_GROUND_PIN,LOW);
+  
   startTime = micros();            //micros() resolution = 8 clock tickson the 3.3v 8MHz prominis
-
   for (loopTime = 0; loopTime < 1200000; loopTime++) { //loopTime prevents us from counting forever if pin does not fall
     if ((PIND & gndPin) == 0) break; // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
     //this loop takes almost exactly one microsecond to cycle @ 8mhz
