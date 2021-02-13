@@ -681,9 +681,12 @@ uint32_t readRedLEDchannel(){
   uint32_t loopTime;  uint64_t startTime = 0;
   byte gndPin =(1 << LED_GROUND_PIN); // same as _BV(LED_GROUND_PIN)
   
+  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
+  pinMode(BLUE_PIN,INPUT_PULLUP);pinMode(GREEN_PIN,INPUT_PULLUP);pinMode(RED_PIN,INPUT_PULLUP);
+  delayMicroseconds(100);
+  digitalWrite(BLUE_PIN,LOW);digitalWrite(GREEN_PIN,LOW);
   digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
-  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,INPUT);
-  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,INPUT);
+
   pinMode(LED_GROUND_PIN,INPUT_PULLUP); 
   delayMicroseconds(300); //Reverses Polarity on red to charge it as an internal capacitor
   digitalWrite(LED_GROUND_PIN,LOW);
@@ -709,9 +712,12 @@ uint32_t readGreenLEDchannel(){
   byte gndPin = (1 << LED_GROUND_PIN);
 
   // Prep pin states
-  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);
-  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,INPUT);
-  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,INPUT);
+  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
+  pinMode(BLUE_PIN,INPUT_PULLUP);pinMode(RED_PIN,INPUT_PULLUP);pinMode(GREEN_PIN,INPUT_PULLUP);
+  delayMicroseconds(100);
+  digitalWrite(BLUE_PIN,LOW);digitalWrite(RED_PIN,LOW);
+  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);//the color channel being read
+
   pinMode(LED_GROUND_PIN,INPUT_PULLUP); 
   delayMicroseconds(300); //Reverses Polarity on red to charge it as an internal capacitor
   digitalWrite(LED_GROUND_PIN,LOW);//PIND = gndPin;//same PORTD &= ~(gndPin); //same as digitalWrite(LED_GROUND_PIN,LOW);
@@ -737,14 +743,13 @@ uint32_t readBlueLEDchannel(){
   uint32_t loopTime = 0;
   uint64_t startTime = 0;
   byte gndPin = (1 << LED_GROUND_PIN);
-  byte nonReadPins = _BV(_BV(RED_PIN) | _BV(GREEN_PIN));
-  //_BV() is a macro that shifts 1 to left by the argument: _BV(5) returns 0b00100000
+
+  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
+  pinMode(BLUE_PIN,INPUT_PULLUP);pinMode(RED_PIN,INPUT_PULLUP);pinMode(GREEN_PIN,INPUT_PULLUP);
+  delayMicroseconds(100);
+  digitalWrite(GREEN_PIN,LOW);digitalWrite(RED_PIN,LOW);
+  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);//the color channel being read
   
-  // Prep pin states
-  byte gndPin =(1 << LED_GROUND_PIN);//same as _BV(LED_GROUND_PIN)
-  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);
-  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,INPUT);
-  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,INPUT);
   pinMode(LED_GROUND_PIN,INPUT_PULLUP); 
   delayMicroseconds(300); //Reverses Polarity on red to charge it as an internal capacitor
   digitalWrite(LED_GROUND_PIN,LOW);
