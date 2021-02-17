@@ -11,9 +11,11 @@
 //updated 20190720 with support for DS18b20 Temperature sensor, set to 12-bit
 //updated 20190720 with support for tweaking the internal vref constant for accurate rail voltages
 //updated 20190722 with 'delayed start' in setup
+//updated 20210217 with improvements to LED light sensing
 
 #include <Wire.h>
 #include <SPI.h>
+#include <avr/power.h>
 #include <RTClib.h>     // https://github.com/MrAlvin/RTClib         // Note: there are many other DS3231 libs availiable
 #include <LowPower.h>   // https://github.com/rocketscream/Low-Power //for low power sleeping between readings
 #include <SdFat.h>      // https://github.com/greiman/SdFat          //needs 512 byte ram buffer!
@@ -678,27 +680,26 @@ int readDS18B20Temp()
 #ifdef readRedLED
 //==========================
 uint32_t readRedLEDchannel(){
-  uint32_t loopTime;  uint64_t startTime = 0;
-  byte gndPin =(1 << LED_GROUND_PIN); // same as _BV(LED_GROUND_PIN)
-  
-  digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
-  pinMode(BLUE_PIN,INPUT_PULLUP);pinMode(GREEN_PIN,INPUT_PULLUP);pinMode(RED_PIN,INPUT_PULLUP);
-  delayMicroseconds(100);
-  digitalWrite(BLUE_PIN,LOW);digitalWrite(GREEN_PIN,LOW);
-  digitalWrite(RED_PIN,LOW);pinMode(RED_PIN,OUTPUT);
+  power_all_disable(); //disable all the chip peripherals to reduce spurious interrupts
+  uint32_t loopTime;
+  byte gndPin = (1 << LED_GROUND_PIN);
 
-  pinMode(LED_GROUND_PIN,INPUT_PULLUP); 
-  delayMicroseconds(300); //Reverses Polarity on red to charge it as an internal capacitor
+  //'discharge'all LED channels before reading
+  digitalWrite(LED_GROUND_PIN,LOW); pinMode(LED_GROUND_PIN,OUTPUT);
+  pinMode(BLUE_PIN,INPUT_PULLUP); pinMode(GREEN_PIN,INPUT_PULLUP);pinMode(RED_PIN,INPUT_PULLUP);
+  digitalWrite(BLUE_PIN,LOW); digitalWrite(GREEN_PIN,LOW);digitalWrite(RED_PIN,LOW); 
+  
+  pinMode(RED_PIN,OUTPUT);
+  pinMode(LED_GROUND_PIN,INPUT_PULLUP); //Reverses Polarity to charge LED's internal capacitance
+  _delay_us(24); //alternative to delayMicroseconds()//calls to __builtin_avr_delay_cycles(), which are compiled into delay loops.
   digitalWrite(LED_GROUND_PIN,LOW);
   
-  startTime = micros(); //micros() resolution = 8 clock tickson the 3.3v 8MHz prominis 
-
   for (loopTime = 0; loopTime < 1200000; loopTime++) { // Counts how long it takes the LED to fall to the logic 0 voltage level
     if ((PIND & gndPin) == 0) break; // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
     //PIND uses port manipulation so executes much faster than digitalRead-> increasing the resolution of the sensor
   }
   
-  loopTime = micros()-startTime; //note reusing loopTime variable here to hold the micros time
+  power_all_enable();
   pinMode(RED_PIN,INPUT); //not needed all pins in input now
   pinMode(LED_GROUND_PIN,OUTPUT); //back to normal 'ground' pin operation
    return loopTime;
@@ -708,28 +709,24 @@ uint32_t readRedLEDchannel(){
 #ifdef readGreenLED  //this function READs Green channel of 3-color indicator LED  
 //=============================
 uint32_t readGreenLEDchannel(){
-  uint32_t loopTime;  uint64_t startTime = 0;
+  power_all_disable(); // stops All TIMERS, ADC, TWI, SPI, USART 
+  uint32_t loopTime;//uint32_t max of 4 294 967 295
   byte gndPin = (1 << LED_GROUND_PIN);
-
-  // Prep pin states
+  
+  //'discharge' all LED channels before reading
   digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
   pinMode(BLUE_PIN,INPUT_PULLUP);pinMode(RED_PIN,INPUT_PULLUP);pinMode(GREEN_PIN,INPUT_PULLUP);
-  delayMicroseconds(100);
-  digitalWrite(BLUE_PIN,LOW);digitalWrite(RED_PIN,LOW);
-  digitalWrite(GREEN_PIN,LOW);pinMode(GREEN_PIN,OUTPUT);//the color channel being read
-
-  pinMode(LED_GROUND_PIN,INPUT_PULLUP); 
-  delayMicroseconds(300); //Reverses Polarity on red to charge it as an internal capacitor
-  digitalWrite(LED_GROUND_PIN,LOW);//PIND = gndPin;//same PORTD &= ~(gndPin); //same as digitalWrite(LED_GROUND_PIN,LOW);
-
-  startTime = micros();//micros() resolution = 8 clock tickson the 3.3v 8MHz prominis
-
+  digitalWrite(BLUE_PIN,LOW);digitalWrite(RED_PIN,LOW);digitalWrite(GREEN_PIN,LOW);
+  
+  pinMode(GREEN_PIN,OUTPUT);//Reverse Polarity on the color channel being read
+  pinMode(LED_GROUND_PIN,INPUT_PULLUP); //to charge LED's internal capacitance
+  _delay_us(24); //alternative to delayMicroseconds()//calls to __builtin_avr_delay_cycles(), which are compiled into delay loops.
+  digitalWrite(LED_GROUND_PIN,LOW);
   for (loopTime = 0; loopTime < 1200000; loopTime++) { // on my led 1.2M goes to approximately 0 LUX
     if ((PIND & gndPin) == 0) break; // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
     //this loop takes almost exactly one microsecond to cycle @ 8mhz
   }
-   loopTime = micros()-startTime; //note reusing loopTime variable here to hold the micros time
-
+   power_all_enable();
    pinMode(GREEN_PIN,INPUT);
    pinMode(LED_GROUND_PIN,OUTPUT); //back to normal 'ground' pin operation
    return loopTime;
@@ -740,28 +737,26 @@ uint32_t readGreenLEDchannel(){
 #ifdef readBlueLED //this function READs BLUE channel of 3-color indicator LED
 //============================
 uint32_t readBlueLEDchannel(){
+  
+  power_all_disable(); // stops All TIMERS, ADC, TWI, SPI, USART  
   uint32_t loopTime = 0;
   uint64_t startTime = 0;
   byte gndPin = (1 << LED_GROUND_PIN);
 
+  //'discharge' all LED channels before reading
   digitalWrite(LED_GROUND_PIN,LOW);pinMode(LED_GROUND_PIN,OUTPUT);
-  pinMode(BLUE_PIN,INPUT_PULLUP);pinMode(RED_PIN,INPUT_PULLUP);pinMode(GREEN_PIN,INPUT_PULLUP);
-  delayMicroseconds(100);
-  digitalWrite(GREEN_PIN,LOW);digitalWrite(RED_PIN,LOW);
-  digitalWrite(BLUE_PIN,LOW);pinMode(BLUE_PIN,OUTPUT);//the color channel being read
+  pinMode(BLUE_PIN,INPUT_PULLUP);pinMode(GREEN_PIN,INPUT_PULLUP);pinMode(RED_PIN,INPUT_PULLUP); 
+  digitalWrite(GREEN_PIN,LOW);digitalWrite(RED_PIN,LOW);digitalWrite(BLUE_PIN,LOW);
   
-  pinMode(LED_GROUND_PIN,INPUT_PULLUP); 
-  delayMicroseconds(300); //Reverses Polarity on red to charge it as an internal capacitor
+  pinMode(BLUE_PIN,OUTPUT); 
+  pinMode(LED_GROUND_PIN,INPUT_PULLUP); //Reverses Polarity to charge LED's internal capacitance
+  _delay_us(24); //alternative to delayMicroseconds()//calls to __builtin_avr_delay_cycles(), which are compiled into delay loops.
   digitalWrite(LED_GROUND_PIN,LOW);
-  
-  startTime = micros();            //micros() resolution = 8 clock tickson the 3.3v 8MHz prominis
   for (loopTime = 0; loopTime < 1200000; loopTime++) { //loopTime prevents us from counting forever if pin does not fall
     if ((PIND & gndPin) == 0) break; // equivalent to: "if (digitalRead(LED_GROUND_PIN)=LOW) stop looping"
     //this loop takes almost exactly one microsecond to cycle @ 8mhz
   }
-  loopTime = micros()-startTime; //note reusing loopTime variable here to hold the micros time
-  //with 1.2m limit, micros difference won't overflow the uint32_t
-   
+   power_all_enable();    //re-enable our peripherals
    pinMode(BLUE_PIN,INPUT);
    pinMode(LED_GROUND_PIN,OUTPUT); //back to normal 'ground' pin operation
    return loopTime;
