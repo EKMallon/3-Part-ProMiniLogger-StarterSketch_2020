@@ -526,12 +526,20 @@ digitalWrite(GREEN_PIN, LOW);digitalWrite(RED_PIN, LOW);digitalWrite(BLUE_PIN, L
 //=======================================================================
 // NOW sleep the logger and wait for next RTC wakeup alarm on pin D2
 //=======================================================================
-// Enable interrupt on pin2 & attach it to rtcISR function:
-  attachInterrupt(0, rtcISR, LOW);
-// Enter power down state with ADC module disabled to save power:
-  LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_ON);
-//processor starts HERE AFTER THE RTC ALARM WAKES IT UP
-  detachInterrupt(0); // immediately disable the interrupt on waking
+// do-while loop keeps the processor trapped until clockInterrupt is set to true
+// if 'anything else' wakes the logger then it just goes right back to sleep
+
+  clockInterrupt = false;
+  bitSet(EIFR,INTF0); // clears any old 'EMI noise triggers' from the Interrupt0 FLAG register
+  
+  do { 
+         attachInterrupt(0, rtcISR, LOW);// Enable interrupt on pin2 & attach it to rtcISR function:
+           LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_ON); // the RTC alarm wakes the processor from this sleep
+         detachInterrupt(0); // immediately disable the interrupt on waking
+    
+  }while(clockInterrupt == false); // if rtc flag is still false then go back to sleep 
+ 
+  EIFR=EIFR; // this memmory register command clears leftover events from ‘BOTH’ d2&d3 hardware interrupts
 
 // We set the clockInterrupt in the ISR, deal with that now:
 if (clockInterrupt) {
