@@ -20,7 +20,7 @@ int YourSensorVariable = libObject.readSensorCommand(); to call the sensor suppo
 
 **file.print(",");** //add a comma to separate data varaibles (the last entry should use .println instead of .print)
 
-The code saves ascii characters to the SD card as CSV text. This script automatically creates a new empty data file that is named "dataXXX.csv" on the SD card at startup. To retrive your data, unplug the battery, and then exchange the SD card with a new one. Import the CSV files into any spreadsheet like Excel, Google sheets, or Open Office. 
+The code saves ascii characters to the SD card as CSV text. This script automatically creates a new sequentially numbered data file on the SD card at startup. To retrive your data, unplug the battery, and then exchange the SD card with a new one. Import the CSV files into any spreadsheet like Excel, Google sheets, or Open Office. 
 
 You will find an introduction to the different types of sensors that you can use with the logger at:
 
