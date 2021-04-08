@@ -1,7 +1,7 @@
 /* A basic datalogger script from the Cave Pearl Project that sleeps the datalogger and wakes from DS3231 RTC alarms*/
 
 // This code is part of the online tutorials supporting for the Sensors publication at: https://www.mdpi.com/1424-8220/18/2/530
-// the latest 'EDU' iteration of that design is https://thecavepearlproject.org/2019/02/21/easy-1-hour-pro-mini-classroom-datalogger-build-update-feb-2019/
+// the latest 'EDU' iteration of that design is https://thecavepearlproject.org/2020/10/22/pro-mini-classroom-datalogger-2020-update/
 // but it will run on any of the Pro Mini dataloggers described at https://thecavepearlproject.org/how-to-build-an-arduino-data-logger/
 // If you use this material as part of another academic project, be cool and reference the paper when you publish. Cheers!
 
